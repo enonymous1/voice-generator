@@ -40,6 +40,12 @@ def _doctor() -> int:
         print("chatterbox  installed")
     except ImportError:
         print('chatterbox  not installed — pip install -e ".[chatterbox]" in its venv')
+    try:
+        import qwen_tts  # noqa: F401
+
+        print("qwen-tts    installed")
+    except ImportError:
+        print('qwen-tts    not installed — pip install -e ".[qwen3]" in its venv')
     import shutil
 
     print(f"ffmpeg   {shutil.which('ffmpeg') or 'not found on PATH (needed later for Stage 2)'}")
@@ -68,6 +74,20 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--exaggeration", type=float, default=0.5)
     p.add_argument("--cfg", type=float, default=0.5, dest="cfg_weight")
     p.add_argument("--max-chars", type=int, default=300)
+    p.add_argument("--ref-text", default=None, help="exact transcript of the reference clip (Qwen3)")
+    p.add_argument("--ref-text-file", type=Path, default=None, help="file containing that transcript")
+    p.add_argument(
+        "--x-vector-only",
+        action="store_true",
+        help="Qwen3: clone from speaker embedding only, no transcript needed (lower quality)",
+    )
+    p.add_argument("--model-size", default="1.7b", choices=["1.7b", "0.6b"], help="Qwen3 Base size")
+    p.add_argument(
+        "--attn",
+        default=None,
+        choices=["sdpa", "eager", "flash_attention_2"],
+        help="Qwen3 attention implementation (default: sdpa; flash_attention_2 is opt-in)",
+    )
 
     args = parser.parse_args(argv)
 
@@ -75,7 +95,7 @@ def main(argv: list[str] | None = None) -> int:
         return _doctor()
     if args.command == "backends":
         print("\n".join(available_backends()))
-        print("\nplanned (separate venvs, not yet wired): cosyvoice (CosyVoice 3), qwen3 (Qwen3-TTS)")
+        print("\nplanned (separate venv, not yet wired): cosyvoice (CosyVoice 3)")
         return 0
     if args.command == "check-ref":
         info = wav_info(args.ref)
@@ -88,6 +108,9 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "synth":
         text = args.text if args.text else args.script.read_text(encoding="utf-8")
+        ref_text = args.ref_text
+        if args.ref_text_file is not None:
+            ref_text = args.ref_text_file.read_text(encoding="utf-8").strip()
         result = synthesize_script(
             text=text,
             reference_wav=args.ref,
@@ -98,6 +121,10 @@ def main(argv: list[str] | None = None) -> int:
             exaggeration=args.exaggeration,
             cfg_weight=args.cfg_weight,
             max_chars=args.max_chars,
+            ref_text=ref_text,
+            x_vector_only=args.x_vector_only,
+            model_size=args.model_size,
+            attn=args.attn,
         )
         print(f"\nDone: {result.wav_path}  ({result.duration_s:.1f}s, {result.chunks} chunk(s))")
         print(f"Manifest: {result.manifest_path}")

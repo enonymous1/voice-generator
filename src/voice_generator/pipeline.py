@@ -37,11 +37,21 @@ def synthesize_script(
     cfg_weight: float = 0.5,
     max_chars: int = 300,
     work_dir: Path | None = None,
+    ref_text: str | None = None,
+    x_vector_only: bool = False,
+    model_size: str = "1.7b",
+    attn: str | None = None,
 ) -> RunResult:
     if reference_wav is not None:
         for warning in check_reference(reference_wav):
             print(f"  ! {warning}")
-    backend_kwargs: dict[str, object] = {"variant": variant} if backend_name == "chatterbox" else {}
+    backend_kwargs: dict[str, object] = {}
+    if backend_name == "chatterbox":
+        backend_kwargs = {"variant": variant}
+    elif backend_name == "qwen3":
+        backend_kwargs = {"size": model_size}
+        if attn is not None:
+            backend_kwargs["attn_implementation"] = attn
     backend = get_backend(backend_name, **backend_kwargs)
 
     chunks = chunk_script(text, max_chars=max_chars)
@@ -61,6 +71,8 @@ def synthesize_script(
                 language=language,
                 exaggeration=exaggeration,
                 cfg_weight=cfg_weight,
+                ref_text=ref_text,
+                x_vector_only=x_vector_only,
             ),
             part,
         )
@@ -75,6 +87,8 @@ def synthesize_script(
         "backend": backend_name,
         "license": backend.license,
         "reference_wav": str(reference_wav) if reference_wav else None,
+        "reference_text": ref_text,
+        "x_vector_only": x_vector_only,
         "language": language,
         "output": out_wav.name,
         "duration_s": round(final.duration_s, 3),

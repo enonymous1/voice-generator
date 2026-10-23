@@ -18,6 +18,8 @@ class SynthesisRequest:
     language: str = "en"
     exaggeration: float = 0.5  # Chatterbox-style emotion intensity; ignored if unsupported
     cfg_weight: float = 0.5
+    ref_text: str | None = None  # exact transcript of the reference clip (Qwen3 ICL cloning)
+    x_vector_only: bool = False  # speaker-embedding-only cloning where supported (Qwen3)
 
 
 @dataclass(frozen=True)

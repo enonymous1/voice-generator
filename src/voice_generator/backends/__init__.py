@@ -8,9 +8,9 @@ from voice_generator.backends.base import BaseBackend
 BACKENDS: dict[str, str] = {
     "mock": "voice_generator.backends.mock_backend:MockBackend",
     "chatterbox": "voice_generator.backends.chatterbox_backend:ChatterboxBackend",
-    # Planned, deliberately not stubbed as if they work:
+    "qwen3": "voice_generator.backends.qwen_backend:Qwen3Backend",
+    # Planned, deliberately not stubbed as if it works:
     # "cosyvoice": separate venv/repo (CosyVoice 3, Apache-2.0, ~3 s clone)
-    # "qwen3":     separate venv (Qwen3-TTS, Apache-2.0, ~3 s clone)
 }
 
 
