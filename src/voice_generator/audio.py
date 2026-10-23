@@ -64,6 +64,27 @@ def check_reference(path: str | Path, *, min_s: float = 3.0, ideal_s: float = 10
     return warnings
 
 
+def write_pcm16_wav(path: str | Path, samples: object, sample_rate: int) -> None:
+    """Write mono float samples (-1..1) as a PCM-16 WAV, numpy-free.
+
+    Backends use this instead of torchaudio/soundfile so every chunk lands in
+    exactly the same format and the stdlib WAV concatenation always works.
+    """
+    import struct
+
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    pcm = bytearray()
+    for s in samples:  # type: ignore[union-attr]
+        v = max(-1.0, min(1.0, float(s)))  # type: ignore[arg-type]
+        pcm += struct.pack("<h", int(v * 32767))
+    with wave.open(str(p), "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(sample_rate)
+        w.writeframes(bytes(pcm))
+
+
 def concat_wavs(parts: list[Path], out: Path) -> WavInfo:
     """Concatenate PCM WAVs that share channels / width / rate. Stdlib only."""
     if not parts:

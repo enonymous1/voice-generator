@@ -41,6 +41,10 @@ def synthesize_script(
     x_vector_only: bool = False,
     model_size: str = "1.7b",
     attn: str | None = None,
+    cosyvoice_home: str | None = None,
+    cosy_model_dir: str | None = None,
+    cosy_mode: str = "zero_shot",
+    cosy_version: str = "3",
 ) -> RunResult:
     if reference_wav is not None:
         for warning in check_reference(reference_wav):
@@ -52,6 +56,12 @@ def synthesize_script(
         backend_kwargs = {"size": model_size}
         if attn is not None:
             backend_kwargs["attn_implementation"] = attn
+    elif backend_name == "cosyvoice":
+        backend_kwargs = {"version": cosy_version, "mode": cosy_mode}
+        if cosyvoice_home is not None:
+            backend_kwargs["cosyvoice_home"] = cosyvoice_home
+        if cosy_model_dir is not None:
+            backend_kwargs["model_dir"] = cosy_model_dir
     backend = get_backend(backend_name, **backend_kwargs)
 
     chunks = chunk_script(text, max_chars=max_chars)

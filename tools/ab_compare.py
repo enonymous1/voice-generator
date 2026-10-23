@@ -80,11 +80,14 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--out-dir", type=Path, required=True)
     p.add_argument("--chatterbox-python", type=Path, default=None, help="python.exe of the Chatterbox venv")
     p.add_argument("--qwen-python", type=Path, default=None, help="python.exe of the Qwen3 venv")
+    p.add_argument("--cosy-python", type=Path, default=None, help="python of the CosyVoice Conda env")
+    p.add_argument("--cosyvoice-home", default=None, help="CosyVoice repo clone (CosyVoice side)")
+    p.add_argument("--cosy-model-dir", default=None, help="CosyVoice model dir (CosyVoice side)")
     p.add_argument("--variant", default="turbo")
     p.add_argument("--model-size", default="1.7b", choices=["1.7b", "0.6b"])
     args = p.parse_args(argv)
-    if not args.chatterbox_python and not args.qwen_python:
-        p.error("give at least one of --chatterbox-python / --qwen-python")
+    if not args.chatterbox_python and not args.qwen_python and not args.cosy_python:
+        p.error("give at least one of --chatterbox-python / --qwen-python / --cosy-python")
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
     results: list[dict[str, object]] = []
@@ -114,6 +117,26 @@ def main(argv: list[str] | None = None) -> int:
                 script=args.script,
                 ref=args.ref,
                 out_wav=args.out_dir / "qwen3.wav",
+                extra=extra,
+            )
+        )
+
+    if args.cosy_python:
+        extra = []
+        if args.ref_text_file:
+            extra += ["--ref-text-file", str(args.ref_text_file)]
+        if args.cosyvoice_home:
+            extra += ["--cosyvoice-home", args.cosyvoice_home]
+        if args.cosy_model_dir:
+            extra += ["--cosy-model-dir", args.cosy_model_dir]
+        results.append(
+            _run_backend(
+                label="cosyvoice:3",
+                python=args.cosy_python,
+                backend="cosyvoice",
+                script=args.script,
+                ref=args.ref,
+                out_wav=args.out_dir / "cosyvoice.wav",
                 extra=extra,
             )
         )

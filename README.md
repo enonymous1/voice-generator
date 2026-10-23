@@ -27,7 +27,7 @@ Windows box is the target hardware.
 | `mock` | ✅ working | — (tone, not speech) | — | 0 — plumbing / timing tests |
 | `chatterbox` | ✅ wired (v0.1) | MIT — outputs carry a PerTh watermark | ~10 s | ~1.5–6 GB |
 | `qwen3` | ✅ wired (v0.2) | Apache-2.0 (Qwen3-TTS Base) | ~3 s + transcript | ~4–8 GB |
-| `cosyvoice` | planned | Apache-2.0 (CosyVoice 3) | ~3 s | ~8–10 GB |
+| `cosyvoice` | ✅ wired (v0.3) | Apache-2.0 (CosyVoice 3 / 2) | ~3 s + transcript | ~8–10 GB |
 
 Explicitly **not** planned, per the research: Fish Speech (non-commercial
 weights), IndexTTS-2 (custom bilibili license — best duration control in the
@@ -73,6 +73,32 @@ Qwen3 cloning notes (verified against the upstream README, 2026-10-22):
 - Attention defaults to `sdpa` (Windows-friendly). Upstream recommends
   FlashAttention 2; opt in with `--attn flash_attention_2` if you have it.
 
+## Install (CosyVoice — Conda env + repo clone, not pip)
+
+CosyVoice is not a pip package. Upstream's path (verified 2026-10-22),
+on Windows expect this to be the fiddliest of the three — it is
+Linux-centric and needs sox:
+
+```bat
+git clone --recursive https://github.com/FunAudioLLM/CosyVoice.git
+conda create -n cosyvoice -y python=3.10
+conda activate cosyvoice
+cd CosyVoice
+pip install -r requirements.txt
+python -c "from huggingface_hub import snapshot_download; snapshot_download('FunAudioLLM/Fun-CosyVoice3-0.5B-2512', local_dir='pretrained_models/Fun-CosyVoice3-0.5B')"
+pip install -e <path-to-ss-voiceGenerator>
+```
+
+```bat
+voice-gen synth --backend cosyvoice --script script.txt --ref refs\me.wav --ref-text-file refs\me.txt --cosyvoice-home C:\path\to\CosyVoice --out output\ep1_cosy.wav
+```
+
+CosyVoice notes: zero-shot needs the reference transcript (same as Qwen3);
+there is no transcript-free clone mode — use `--cosy-mode cross_lingual`
+instead. For CosyVoice 3 the backend automatically formats the prompt the
+way upstream's example does (`You are a helpful assistant.<|endofprompt|>`
++ transcript); `--cosy-version 2` uses the bare transcript.
+
 ## Use
 
 ```bat
@@ -84,16 +110,17 @@ voice-gen synth --text "Hello, this is my digital twin." --ref refs\me_10s.wav -
 voice-gen synth --backend qwen3 --script script.txt --ref refs\me_3s.wav --ref-text-file refs\me.txt --out output\ep1_qwen.wav
 ```
 
-## A/B compare (Chatterbox vs Qwen3)
+## A/B compare (Chatterbox vs Qwen3 vs CosyVoice)
 
-The backends live in separate venvs, so the compare tool drives each venv's
-interpreter as a subprocess and compares the resulting manifests:
+The backends live in separate environments, so the compare tool drives each
+environment's interpreter as a subprocess and compares the resulting
+manifests (any subset of the three sides may be given):
 
 ```bat
-python tools\ab_compare.py --script script.txt --ref refs\me.wav --ref-text-file refs\me.txt --chatterbox-python .venv-chatterbox\Scripts\python.exe --qwen-python .venv-qwen3\Scripts\python.exe --out-dir output\ab1
+python tools\ab_compare.py --script script.txt --ref refs\me.wav --ref-text-file refs\me.txt --chatterbox-python .venv-chatterbox\Scripts\python.exe --qwen-python .venv-qwen3\Scripts\python.exe --cosy-python <cosyvoice-conda-python> --cosyvoice-home C:\path\to\CosyVoice --out-dir output\ab1
 ```
 
-It writes `chatterbox.wav`, `qwen3.wav`, and `ab_comparison.json`
+It writes one WAV per backend plus `ab_comparison.json`
 (durations / sample rates / wall times) into the output directory. The
 comparison is your ears — the JSON is diagnostics, not a quality score.
 
@@ -126,7 +153,9 @@ model downloads.
 ## Roadmap
 
 1. **v0.1** — core + Chatterbox + mock, CLI, manifest, tests.
-2. **v0.2 (this)** — Qwen3-TTS backend in its own venv (user's pick over
+2. **v0.2** — Qwen3-TTS backend in its own venv (user's pick over
    CosyVoice 3), `--ref-text` support, and the A/B compare tool.
-3. v0.3 — CosyVoice 3 backend, or the handoff contract with Stage 2
-   (EchoMimicV3 Flash / MuseTalk): WAV + manifest in, lip-synced MP4 out.
+3. **v0.3 (this)** — CosyVoice 3 backend (loads from a local repo clone in
+   its Conda env), A/B tool extended to all three backends.
+4. v0.4 — the handoff contract with Stage 2 (EchoMimicV3 Flash / MuseTalk):
+   WAV + manifest in, lip-synced MP4 out.

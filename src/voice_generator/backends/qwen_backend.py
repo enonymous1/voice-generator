@@ -24,11 +24,9 @@ Voice-clone specifics that shape this code:
 
 from __future__ import annotations
 
-import struct
-import wave
 from pathlib import Path
 
-from voice_generator.audio import wav_info
+from voice_generator.audio import wav_info, write_pcm16_wav
 from voice_generator.backends.base import BaseBackend, SynthesisRequest, SynthesisResult
 
 _MODELS = {
@@ -53,20 +51,6 @@ _LANGUAGES = {
 
 def map_language(language: str) -> str:
     return _LANGUAGES.get(language.lower(), language[:1].upper() + language[1:])
-
-
-def _write_pcm16_wav(path: Path, samples: object, sample_rate: int) -> None:
-    """Write mono float samples (-1..1) as a PCM-16 WAV, numpy-free."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    pcm = bytearray()
-    for s in samples:  # type: ignore[union-attr]
-        v = max(-1.0, min(1.0, float(s)))  # type: ignore[arg-type]
-        pcm += struct.pack("<h", int(v * 32767))
-    with wave.open(str(path), "wb") as w:
-        w.setnchannels(1)
-        w.setsampwidth(2)
-        w.setframerate(sample_rate)
-        w.writeframes(bytes(pcm))
 
 
 class Qwen3Backend(BaseBackend):
@@ -145,7 +129,7 @@ class Qwen3Backend(BaseBackend):
             language=map_language(request.language),
             voice_clone_prompt=prompt,
         )
-        _write_pcm16_wav(out_wav, wavs[0], int(sr))
+        write_pcm16_wav(out_wav, wavs[0], int(sr))
         return SynthesisResult(
             wav_path=out_wav,
             backend=f"qwen3:{self.size}",

@@ -46,6 +46,18 @@ def _doctor() -> int:
         print("qwen-tts    installed")
     except ImportError:
         print('qwen-tts    not installed — pip install -e ".[qwen3]" in its venv')
+    import os
+
+    home = os.environ.get("COSYVOICE_HOME")
+    try:
+        import cosyvoice  # noqa: F401
+
+        print("cosyvoice   importable in this env")
+    except ImportError:
+        print(
+            "cosyvoice   not importable here — it lives in its own Conda env + repo clone"
+            f" (COSYVOICE_HOME={home or 'unset'})"
+        )
     import shutil
 
     print(f"ffmpeg   {shutil.which('ffmpeg') or 'not found on PATH (needed later for Stage 2)'}")
@@ -88,6 +100,15 @@ def main(argv: list[str] | None = None) -> int:
         choices=["sdpa", "eager", "flash_attention_2"],
         help="Qwen3 attention implementation (default: sdpa; flash_attention_2 is opt-in)",
     )
+    p.add_argument("--cosyvoice-home", default=None, help="CosyVoice: path to the cloned CosyVoice repo")
+    p.add_argument("--cosy-model-dir", default=None, help="CosyVoice: model snapshot directory")
+    p.add_argument(
+        "--cosy-mode",
+        default="zero_shot",
+        choices=["zero_shot", "cross_lingual"],
+        help="CosyVoice clone mode (cross_lingual needs no reference transcript)",
+    )
+    p.add_argument("--cosy-version", default="3", choices=["3", "2"], help="CosyVoice version")
 
     args = parser.parse_args(argv)
 
@@ -95,7 +116,6 @@ def main(argv: list[str] | None = None) -> int:
         return _doctor()
     if args.command == "backends":
         print("\n".join(available_backends()))
-        print("\nplanned (separate venv, not yet wired): cosyvoice (CosyVoice 3)")
         return 0
     if args.command == "check-ref":
         info = wav_info(args.ref)
@@ -125,6 +145,10 @@ def main(argv: list[str] | None = None) -> int:
             x_vector_only=args.x_vector_only,
             model_size=args.model_size,
             attn=args.attn,
+            cosyvoice_home=args.cosyvoice_home,
+            cosy_model_dir=args.cosy_model_dir,
+            cosy_mode=args.cosy_mode,
+            cosy_version=args.cosy_version,
         )
         print(f"\nDone: {result.wav_path}  ({result.duration_s:.1f}s, {result.chunks} chunk(s))")
         print(f"Manifest: {result.manifest_path}")
