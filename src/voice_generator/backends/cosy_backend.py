@@ -58,7 +58,7 @@ _SETUP_HINT = (
     "  python -c \"from huggingface_hub import snapshot_download; "
     "snapshot_download('FunAudioLLM/Fun-CosyVoice3-0.5B-2512', "
     "local_dir='pretrained_models/Fun-CosyVoice3-0.5B')\"\n"
-    "  pip install -e <path-to-ss-voiceGenerator>   (into the cosyvoice env)\n"
+    "  pip install -e <path-to-voice-generator>   (into the cosyvoice env)\n"
     "Then pass --cosyvoice-home <CosyVoice clone> (or set COSYVOICE_HOME)."
 )
 

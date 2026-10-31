@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ss-voice-generator"
+name = "voice-generator"
 # Single source of truth: voice_generator.__version__. (Previously the
 # version lived in both places and could drift — the 0.3.0 release had
 # them in sync only by hand.)

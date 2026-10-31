@@ -5,7 +5,7 @@
     </marker>
   </defs>
   <rect x="0" y="0" width="880" height="340" fill="#ffffff"/>
-  <text x="20" y="28" font-size="18" font-weight="700" fill="#0f172a">ss-voiceGenerator — script to WAV + manifest</text>
+  <text x="20" y="28" font-size="18" font-weight="700" fill="#0f172a">voice-generator — script to WAV + manifest</text>
   <text x="20" y="50" font-size="13" fill="#475569">Core has no torch dependency. Each real backend runs in its own venv / Conda env.</text>
 
   <rect x="20" y="80" width="150" height="64" rx="8" fill="#e0f2fe" stroke="#0284c7"/>

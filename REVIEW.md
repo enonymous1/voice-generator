@@ -1,4 +1,4 @@
-# Staff review — ss-voiceGenerator (2026-10-31)
+# Staff review — voice-generator (2026-10-31)
 
 Reviewer posture: staff engineer + open-source maintainer, reviewing the
 v0.3.0 tree as it stood before this pass. Scope: all of `src/`,

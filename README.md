@@ -1,4 +1,4 @@
-# ss-voiceGenerator
+# voice-generator
 
 Local, fully FOSS **voice cloning from a text script** — Stage 1 of the AI
 Digital Twin pipeline. Give it a short recording of a voice and a text
@@ -112,7 +112,7 @@ before you install a single model. The `mock` backend writes a tone WAV
 of realistic duration instead of speech.
 
 ```bat
-cd ss-voiceGenerator
+cd voice-generator
 py -3.11 -m venv .venv-core
 .venv-core\Scripts\activate
 pip install -e .
@@ -182,7 +182,7 @@ conda activate cosyvoice
 cd CosyVoice
 pip install -r requirements.txt
 python -c "from huggingface_hub import snapshot_download; snapshot_download('FunAudioLLM/Fun-CosyVoice3-0.5B-2512', local_dir='pretrained_models/Fun-CosyVoice3-0.5B')"
-pip install -e <path-to-ss-voiceGenerator>
+pip install -e <path-to-voice-generator>
 ```
 
 Notes:
@@ -405,7 +405,7 @@ from the 2026-10-31 staff review (see `REVIEW.md`).
 **Project layout:**
 
 ```
-ss-voiceGenerator/
+voice-generator/
 ├── pyproject.toml            # package metadata; per-backend extras
 ├── README.md                 # this file
 ├── REVIEW.md                 # staff review (2026-10-31) + fix log

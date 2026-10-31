@@ -1,7 +1,15 @@
 # Changelog
 
-All notable changes to ss-voiceGenerator, following
+All notable changes to voice-generator, following
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+
+## [Unreleased]
+
+### Changed
+- Repository renamed from `ss-voiceGenerator` to `voice-generator`
+  (approved 2026-10-31). Display names only — directory, README title,
+  distribution name, and copyright line. The `voice_generator` package,
+  `voice-gen` CLI, and all behaviour are unchanged.
 
 ## [0.3.1] — 2026-10-31 (staff review)
 
