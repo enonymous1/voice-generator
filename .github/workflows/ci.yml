@@ -1,0 +1,25 @@
+# CI: the core test suite needs no GPU, no model downloads, no torch —
+# it runs on the free runners. Real-backend renders are a manual gate on
+# the target Windows box (see README > Deployment).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install -e ".[dev]"
+      - run: ruff check src tests tools
+      - run: pytest -q

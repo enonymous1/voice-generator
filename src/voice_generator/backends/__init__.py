@@ -13,11 +13,29 @@ BACKENDS: dict[str, str] = {
 }
 
 
+# Import name each backend's engine package is known by, for `doctor`
+# probes. Kept separate from BACKENDS because the registry keys are CLI
+# names ("qwen3") while the import names are upstream's ("qwen_tts").
+BACKEND_IMPORTS: dict[str, str] = {
+    "mock": "voice_generator.backends.mock_backend",
+    "chatterbox": "chatterbox",
+    "qwen3": "qwen_tts",
+    "cosyvoice": "cosyvoice",
+}
+
+
 def available_backends() -> list[str]:
     return sorted(BACKENDS)
 
 
 def get_backend(name: str, **kwargs: object) -> BaseBackend:
+    """Instantiate a backend by CLI name. kwargs go to its constructor.
+
+    Import is lazy (module import happens here, not at package import),
+    which is what keeps the core CLI torch-free. Raises ``ValueError``
+    for an unknown name and lets the backend's own ``RuntimeError``
+    surface when its engine package is missing.
+    """
     if name not in BACKENDS:
         raise ValueError(f"unknown backend {name!r} — available: {', '.join(available_backends())}")
     module_path, class_name = BACKENDS[name].split(":")

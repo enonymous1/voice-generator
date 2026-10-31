@@ -38,7 +38,12 @@ import sys
 from pathlib import Path
 
 from voice_generator.audio import wav_info, write_pcm16_wav
-from voice_generator.backends.base import BaseBackend, SynthesisRequest, SynthesisResult
+from voice_generator.backends.base import (
+    BaseBackend,
+    SynthesisRequest,
+    SynthesisResult,
+    require_reference,
+)
 
 _DEFAULT_MODEL_DIRS = {
     "3": "pretrained_models/Fun-CosyVoice3-0.5B",
@@ -90,11 +95,17 @@ class CosyBackend(BaseBackend):
         mode: str = "zero_shot",
     ) -> None:
         if version not in _DEFAULT_MODEL_DIRS:
-            raise ValueError(f"version must be one of {sorted(_DEFAULT_MODEL_DIRS)}, got {version!r}")
+            raise ValueError(
+                f"version must be one of {sorted(_DEFAULT_MODEL_DIRS)}, got {version!r}"
+            )
         if mode not in ("zero_shot", "cross_lingual"):
             raise ValueError(f"mode must be zero_shot or cross_lingual, got {mode!r}")
         self.version = version
         self.mode = mode
+        # Initialised here (it used to be created implicitly in _load via
+        # getattr, which hid a real AttributeError-shaped bug class and
+        # confused every reader about the object's state).
+        self._model: object | None = None
         home = cosyvoice_home or os.environ.get("COSYVOICE_HOME")
         self.cosyvoice_home = Path(home) if home else None
         model = model_dir or os.environ.get("COSYVOICE_MODEL_DIR")
@@ -106,9 +117,14 @@ class CosyBackend(BaseBackend):
             self.model_dir = Path(_DEFAULT_MODEL_DIRS[version])
 
     def _load(self) -> object:
-        if getattr(self, "_model", None) is not None:
-            return self._model  # type: ignore[attr-defined]
+        if self._model is not None:
+            return self._model
         if self.cosyvoice_home is not None:
+            # Upstream example.py does exactly this; the guard keeps a
+            # second backend instance in the same process from duplicating
+            # entries. Note this mutates global sys.path for the process
+            # lifetime — acceptable for a CLI run, a known limitation for
+            # library embedding (see REVIEW.md).
             for extra in (self.cosyvoice_home, self.cosyvoice_home / "third_party" / "Matcha-TTS"):
                 if extra.exists() and str(extra) not in sys.path:
                     sys.path.insert(0, str(extra))
@@ -116,18 +132,20 @@ class CosyBackend(BaseBackend):
             from cosyvoice.cli.cosyvoice import AutoModel
         except ImportError as exc:
             raise RuntimeError(_SETUP_HINT) from exc
-        self._model = AutoModel(model_dir=str(self.model_dir))  # type: ignore[attr-defined]
-        return self._model  # type: ignore[attr-defined]
+        self._model = AutoModel(model_dir=str(self.model_dir))
+        return self._model
 
     def _prompt_text(self, request: SynthesisRequest) -> str:
-        assert request.ref_text is not None
+        # Explicit check, not assert (see Qwen3 backend): user input, and
+        # asserts vanish under python -O.
+        if request.ref_text is None:
+            raise ValueError("cosyvoice prompt needs a reference transcript")
         if self.version == "3" and "<|endofprompt|>" not in request.ref_text:
             return f"You are a helpful assistant.<|endofprompt|>{request.ref_text}"
         return request.ref_text
 
     def synthesize(self, request: SynthesisRequest, out_wav: Path) -> SynthesisResult:
-        if request.reference_wav is None:
-            raise ValueError("cosyvoice needs a reference clip (--ref ref.wav)")
+        require_reference(request, "cosyvoice")
         model = self._load()
         if self.mode == "zero_shot":
             if not request.ref_text:

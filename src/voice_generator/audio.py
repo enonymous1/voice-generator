@@ -49,16 +49,20 @@ def check_reference(path: str | Path, *, min_s: float = 3.0, ideal_s: float = 10
     warnings: list[str] = []
     if info.duration_s < min_s:
         warnings.append(
-            f"reference is only {info.duration_s:.1f}s (< {min_s:.0f}s minimum) — cloning will be poor"
+            f"reference is only {info.duration_s:.1f}s "
+            f"(< {min_s:.0f}s minimum) — cloning will be poor"
         )
     elif info.duration_s < ideal_s:
         warnings.append(
-            f"reference is {info.duration_s:.1f}s — usable, but ~{ideal_s:.0f}s gives a better clone"
+            f"reference is {info.duration_s:.1f}s — usable, "
+            f"but ~{ideal_s:.0f}s gives a better clone"
         )
     if info.duration_s > 60:
         warnings.append(f"reference is {info.duration_s:.0f}s — trim to the cleanest 10–30 s")
     if info.channels > 1:
-        warnings.append("reference is stereo — most backends expect mono; it will be downmixed or rejected")
+        warnings.append(
+            "reference is stereo — most backends expect mono; it will be downmixed or rejected"
+        )
     if info.sample_rate < 16000:
         warnings.append(f"reference sample rate is {info.sample_rate} Hz — 16 kHz+ recommended")
     return warnings
@@ -69,24 +73,31 @@ def write_pcm16_wav(path: str | Path, samples: object, sample_rate: int) -> None
 
     Backends use this instead of torchaudio/soundfile so every chunk lands in
     exactly the same format and the stdlib WAV concatenation always works.
+    Samples are clipped to [-1, 1] (a model overshooting slightly must not
+    wrap around into loud clicks) and packed in one bulk ``struct.pack``
+    call: the previous per-sample loop was the slowest code in the
+    pipeline for long renders (millions of samples).
     """
     import struct
 
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
-    pcm = bytearray()
-    for s in samples:  # type: ignore[union-attr]
-        v = max(-1.0, min(1.0, float(s)))  # type: ignore[arg-type]
-        pcm += struct.pack("<h", int(v * 32767))
+    clipped = [max(-1.0, min(1.0, float(s))) for s in samples]  # type: ignore[union-attr, arg-type]
+    pcm = struct.pack(f"<{len(clipped)}h", *(int(v * 32767) for v in clipped))
     with wave.open(str(p), "wb") as w:
         w.setnchannels(1)
         w.setsampwidth(2)
         w.setframerate(sample_rate)
-        w.writeframes(bytes(pcm))
+        w.writeframes(pcm)
 
 
 def concat_wavs(parts: list[Path], out: Path) -> WavInfo:
-    """Concatenate PCM WAVs that share channels / width / rate. Stdlib only."""
+    """Concatenate PCM WAVs that share channels / width / rate. Stdlib only.
+
+    Each part is read fully into memory in turn (not all at once); a
+    10-minute mono 24 kHz render is ~28 MB, so this is fine for script
+    lengths this tool targets, but it is not a streaming join.
+    """
     if not parts:
         raise ValueError("no WAV parts to concatenate")
     first = wav_info(parts[0])

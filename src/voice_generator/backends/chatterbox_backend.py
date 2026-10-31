@@ -15,7 +15,13 @@ from __future__ import annotations
 from pathlib import Path
 
 from voice_generator.audio import wav_info
-from voice_generator.backends.base import BaseBackend, SynthesisRequest, SynthesisResult
+from voice_generator.backends.base import (
+    BaseBackend,
+    SynthesisRequest,
+    SynthesisResult,
+    require_reference,
+    resolve_device,
+)
 
 _VARIANTS = ("original", "turbo", "multilingual")
 
@@ -25,7 +31,10 @@ class ChatterboxBackend(BaseBackend):
     license = "MIT (outputs carry a PerTh watermark)"
     min_reference_s = 5.0
 
-    def __init__(self, variant: str = "turbo", device: str = "cuda") -> None:
+    def __init__(self, variant: str = "turbo", device: str = "auto") -> None:
+        # "auto" (new default, was hardcoded "cuda") resolves at load time:
+        # a CPU-only machine previously died inside from_pretrained with a
+        # CUDA error; now it renders on CPU or fails with a clear message.
         if variant not in _VARIANTS:
             raise ValueError(f"variant must be one of {_VARIANTS}, got {variant!r}")
         self.variant = variant
@@ -44,23 +53,23 @@ class ChatterboxBackend(BaseBackend):
                 '  .venv-chatterbox\\Scripts\\activate   (Windows)\n'
                 '  pip install -e ".[chatterbox]"'
             ) from exc
+        device = resolve_device(self.device)
         if self.variant == "turbo":
             from chatterbox.tts_turbo import ChatterboxTurboTTS
 
-            self._model = ChatterboxTurboTTS.from_pretrained(device=self.device)
+            self._model = ChatterboxTurboTTS.from_pretrained(device=device)
         elif self.variant == "multilingual":
             from chatterbox.mtl_tts import ChatterboxMultilingualTTS
 
-            self._model = ChatterboxMultilingualTTS.from_pretrained(device=self.device)
+            self._model = ChatterboxMultilingualTTS.from_pretrained(device=device)
         else:
             from chatterbox.tts import ChatterboxTTS
 
-            self._model = ChatterboxTTS.from_pretrained(device=self.device)
+            self._model = ChatterboxTTS.from_pretrained(device=device)
         return self._model
 
     def synthesize(self, request: SynthesisRequest, out_wav: Path) -> SynthesisResult:
-        if request.reference_wav is None:
-            raise ValueError("chatterbox needs a reference clip (--ref your_10s_ref_clip.wav)")
+        require_reference(request, "chatterbox")
         model = self._load()
         import torchaudio
 

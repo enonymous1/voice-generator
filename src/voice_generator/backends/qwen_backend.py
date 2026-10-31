@@ -27,7 +27,13 @@ from __future__ import annotations
 from pathlib import Path
 
 from voice_generator.audio import wav_info, write_pcm16_wav
-from voice_generator.backends.base import BaseBackend, SynthesisRequest, SynthesisResult
+from voice_generator.backends.base import (
+    BaseBackend,
+    SynthesisRequest,
+    SynthesisResult,
+    require_reference,
+    resolve_device,
+)
 
 _MODELS = {
     "1.7b": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
@@ -61,12 +67,16 @@ class Qwen3Backend(BaseBackend):
     def __init__(
         self,
         size: str = "1.7b",
-        device: str = "cuda:0",
+        device: str = "auto",
         dtype: str = "bfloat16",
         attn_implementation: str | None = "sdpa",
     ) -> None:
         if size not in _MODELS:
             raise ValueError(f"size must be one of {sorted(_MODELS)}, got {size!r}")
+        # Fail fast on a bad dtype instead of a bare KeyError inside _load,
+        # where the real cause would be buried under a model-load traceback.
+        if dtype not in ("bfloat16", "float16", "float32"):
+            raise ValueError(f"dtype must be bfloat16, float16 or float32, got {dtype!r}")
         self.size = size
         self.model_id = _MODELS[size]
         self.device = device
@@ -95,15 +105,20 @@ class Qwen3Backend(BaseBackend):
             "float16": torch.float16,
             "float32": torch.float32,
         }[self.dtype_name]
-        kwargs: dict[str, object] = {"device_map": self.device, "dtype": dtype}
+        # "auto" resolves here, at load time (not in __init__), so a
+        # backend constructed in a test or a CPU-only env still works and
+        # the device decision sees the real torch of this environment.
+        kwargs: dict[str, object] = {"device_map": resolve_device(self.device), "dtype": dtype}
         if self.attn_implementation:
             kwargs["attn_implementation"] = self.attn_implementation
         self._model = Qwen3TTSModel.from_pretrained(self.model_id, **kwargs)
         return self._model
 
     def _prompt(self, request: SynthesisRequest) -> object:
-        assert request.reference_wav is not None
-        key = (str(request.reference_wav), request.ref_text, request.x_vector_only)
+        # Explicit check, not assert: asserts vanish under python -O and
+        # this is a user-input validation, not an internal invariant.
+        ref = require_reference(request, "qwen3")
+        key = (str(ref), request.ref_text, request.x_vector_only)
         if key not in self._prompt_cache:
             model = self._load()
             self._prompt_cache[key] = model.create_voice_clone_prompt(  # type: ignore[attr-defined]
@@ -114,8 +129,7 @@ class Qwen3Backend(BaseBackend):
         return self._prompt_cache[key]
 
     def synthesize(self, request: SynthesisRequest, out_wav: Path) -> SynthesisResult:
-        if request.reference_wav is None:
-            raise ValueError("qwen3 needs a reference clip (--ref ref.wav)")
+        require_reference(request, "qwen3")
         if not request.x_vector_only and not request.ref_text:
             raise ValueError(
                 "qwen3 full cloning needs the reference transcript: pass --ref-text \"...\" "

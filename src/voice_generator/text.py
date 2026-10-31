@@ -9,7 +9,18 @@ _SENTENCE_END = re.compile(r"(?<=[.!?…])\s+")
 
 
 def chunk_script(text: str, *, max_chars: int = 300) -> list[str]:
-    """Split text into chunks of at most ~max_chars, on sentence boundaries first."""
+    """Split text into chunks of at most ~max_chars, on sentence boundaries first.
+
+    Sentences are packed greedily into chunks; a single sentence longer
+    than ``max_chars`` is hard-split on commas, then spaces, then
+    arbitrarily. ``max_chars`` must be positive: zero or negative would
+    make the hard-split loop spin forever (caught here, not in the CLI).
+    Known limitation, by design: the sentence regex also splits after
+    abbreviations ("Dr. Smith") and decimals — fixing that properly needs
+    a sentence tokenizer, which the stdlib does not provide.
+    """
+    if max_chars < 1:
+        raise ValueError(f"max_chars must be positive, got {max_chars}")
     text = " ".join(text.split())
     if not text:
         return []

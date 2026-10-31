@@ -1,9 +1,9 @@
-"""A/B compare: render the SAME script + reference through two backends and
-write a side-by-side comparison manifest.
+"""A/B compare: render the SAME script + reference through up to three
+backends and write a side-by-side comparison manifest.
 
 Why a subprocess tool instead of a library call: the backends live in
 separate venvs (their torch stacks conflict), so no single interpreter can
-import both. This tool drives each venv's interpreter with
+import all of them. This tool drives each venv's interpreter with
 `python -m voice_generator synth ...` and then compares the results
 (duration, sample rate, wall time) from the manifests each run produced.
 
@@ -12,11 +12,12 @@ Usage:
       --ref-text-file refs/me.txt ^
       --chatterbox-python .venv-chatterbox/Scripts/python.exe ^
       --qwen-python .venv-qwen3/Scripts/python.exe ^
+      --cosy-python <cosyvoice-conda-python> --cosyvoice-home C:/path/to/CosyVoice ^
       --out-dir output/ab1
 
-Either --chatterbox-python or --qwen-python may be omitted (that side is
-skipped), which also makes this usable for a single-backend timing run.
-Stdlib only — run it with any Python.
+Any backend side may be omitted (that side is skipped), which also makes
+this usable for a single-backend timing run. Stdlib only — run it with
+any Python.
 """
 
 from __future__ import annotations
@@ -73,17 +74,26 @@ def _run_backend(
 
 
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(description="Render one script through two backends and compare")
+    p = argparse.ArgumentParser(
+        description="Render one script through up to three backends and compare"
+    )
     p.add_argument("--script", type=Path, required=True)
     p.add_argument("--ref", type=Path, required=True)
-    p.add_argument("--ref-text-file", type=Path, default=None, help="reference transcript (Qwen3 side)")
+    p.add_argument(
+        "--ref-text-file", type=Path, default=None, help="reference transcript (Qwen3 side)"
+    )
     p.add_argument("--out-dir", type=Path, required=True)
-    p.add_argument("--chatterbox-python", type=Path, default=None, help="python.exe of the Chatterbox venv")
+    p.add_argument(
+        "--chatterbox-python", type=Path, default=None, help="python.exe of the Chatterbox venv"
+    )
     p.add_argument("--qwen-python", type=Path, default=None, help="python.exe of the Qwen3 venv")
-    p.add_argument("--cosy-python", type=Path, default=None, help="python of the CosyVoice Conda env")
+    p.add_argument(
+        "--cosy-python", type=Path, default=None, help="python of the CosyVoice Conda env"
+    )
     p.add_argument("--cosyvoice-home", default=None, help="CosyVoice repo clone (CosyVoice side)")
     p.add_argument("--cosy-model-dir", default=None, help="CosyVoice model dir (CosyVoice side)")
     p.add_argument("--variant", default="turbo")
+    p.add_argument("--language", default="en", help="language code passed to every backend side")
     p.add_argument("--model-size", default="1.7b", choices=["1.7b", "0.6b"])
     args = p.parse_args(argv)
     if not args.chatterbox_python and not args.qwen_python and not args.cosy_python:
@@ -100,11 +110,11 @@ def main(argv: list[str] | None = None) -> int:
                 script=args.script,
                 ref=args.ref,
                 out_wav=args.out_dir / "chatterbox.wav",
-                extra=["--variant", args.variant],
+                extra=["--variant", args.variant, "--language", args.language],
             )
         )
     if args.qwen_python:
-        extra = ["--model-size", args.model_size]
+        extra = ["--model-size", args.model_size, "--language", args.language]
         if args.ref_text_file:
             extra += ["--ref-text-file", str(args.ref_text_file)]
         else:
@@ -122,7 +132,7 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     if args.cosy_python:
-        extra = []
+        extra = ["--language", args.language]
         if args.ref_text_file:
             extra += ["--ref-text-file", str(args.ref_text_file)]
         if args.cosyvoice_home:

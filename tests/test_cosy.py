@@ -79,7 +79,9 @@ def test_v3_prompt_format_and_segment_concat(fake_cosy, tmp_path: Path):
 def test_v2_prompt_is_bare_transcript(fake_cosy, tmp_path: Path):
     backend = CosyBackend(version="2", model_dir=tmp_path / "model")
     backend.synthesize(_req(tmp_path), tmp_path / "out.wav")
-    assert fake_cosy.instances[0].zero_shot_calls[0][1] == "The exact transcript of the reference clip."
+    assert fake_cosy.instances[0].zero_shot_calls[0][1] == (
+        "The exact transcript of the reference clip."
+    )
 
 
 def test_zero_shot_requires_transcript(fake_cosy, tmp_path: Path):

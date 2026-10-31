@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="340" viewBox="0 0 880 340" font-family="system-ui, -apple-system, Segoe UI, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#475569"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="880" height="340" fill="#ffffff"/>
+  <text x="20" y="28" font-size="18" font-weight="700" fill="#0f172a">ss-voiceGenerator — script to WAV + manifest</text>
+  <text x="20" y="50" font-size="13" fill="#475569">Core has no torch dependency. Each real backend runs in its own venv / Conda env.</text>
+
+  <rect x="20" y="80" width="150" height="64" rx="8" fill="#e0f2fe" stroke="#0284c7"/>
+  <text x="95" y="108" text-anchor="middle" font-size="14" font-weight="600" fill="#0c4a6e">script.txt</text>
+  <text x="95" y="128" text-anchor="middle" font-size="12" fill="#334155">+ reference clip</text>
+
+  <rect x="210" y="80" width="150" height="64" rx="8" fill="#fef3c7" stroke="#d97706"/>
+  <text x="285" y="108" text-anchor="middle" font-size="14" font-weight="600" fill="#78350f">chunk_script()</text>
+  <text x="285" y="128" text-anchor="middle" font-size="12" fill="#334155">sentences, ≤ 300 chars</text>
+
+  <rect x="400" y="80" width="190" height="64" rx="8" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="495" y="108" text-anchor="middle" font-size="14" font-weight="600" fill="#14532d">backend.synthesize()</text>
+  <text x="495" y="128" text-anchor="middle" font-size="12" fill="#334155">one model, loaded once</text>
+
+  <rect x="630" y="80" width="150" height="64" rx="8" fill="#ede9fe" stroke="#7c3aed"/>
+  <text x="705" y="108" text-anchor="middle" font-size="14" font-weight="600" fill="#4c1d95">concat_wavs()</text>
+  <text x="705" y="128" text-anchor="middle" font-size="12" fill="#334155">stdlib, PCM-16</text>
+
+  <line x1="170" y1="112" x2="210" y2="112" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="360" y1="112" x2="400" y2="112" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="590" y1="112" x2="630" y2="112" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <rect x="400" y="180" width="190" height="110" rx="8" fill="#f8fafc" stroke="#94a3b8"/>
+  <text x="495" y="206" text-anchor="middle" font-size="13" font-weight="600" fill="#0f172a">Backends (registry)</text>
+  <text x="410" y="230" font-size="12" fill="#334155">mock · chatterbox (MIT)</text>
+  <text x="410" y="250" font-size="12" fill="#334155">qwen3 (Apache-2.0)</text>
+  <text x="410" y="270" font-size="12" fill="#334155">cosyvoice (Apache-2.0)</text>
+  <line x1="495" y1="180" x2="495" y2="144" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4 3"/>
+
+  <rect x="20" y="180" width="330" height="110" rx="8" fill="#f8fafc" stroke="#94a3b8"/>
+  <text x="185" y="206" text-anchor="middle" font-size="13" font-weight="600" fill="#0f172a">Outputs (the Stage 2 contract)</text>
+  <text x="35" y="230" font-size="12" fill="#334155">output.wav — one joined PCM-16 WAV</text>
+  <text x="35" y="250" font-size="12" fill="#334155">output.manifest.json — backend, settings,</text>
+  <text x="35" y="270" font-size="12" fill="#334155">reference, per-chunk durations (v1)</text>
+  <line x1="350" y1="235" x2="400" y2="235" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4 3"/>
+  <text x="630" y="200" font-size="12" fill="#334155">Stage 2 (later):</text>
+  <text x="630" y="220" font-size="12" fill="#334155">WAV + manifest in,</text>
+  <text x="630" y="240" font-size="12" fill="#334155">lip-synced MP4 out</text>
+  <line x1="780" y1="144" x2="780" y2="180" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+</svg>
