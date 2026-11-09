@@ -92,6 +92,16 @@ voice-gen doctor
 `doctor` should report torch with CUDA available and your GPU's VRAM.
 Then one short test line — judge this before rendering anything long:
 
+> If the first render fails with `TypeError: 'NoneType' object is not
+> callable` at `PerthImplicitWatermarker`, run
+> `pip install "setuptools<81"` in this same venv and retry. That is an
+> upstream incompatibility, not your setup: Chatterbox Turbo's
+> watermarking library (`resemble-perth`) imports `pkg_resources`,
+> which setuptools 81+ removed, and perth silently swallows its own
+> import error — so the failure only surfaces at model load, after the
+> 4 GB download. New installs get the pin automatically through the
+> `chatterbox` extra; existing venvs need the one command above.
+
 ```powershell
 voice-gen synth --text "Hello, this is a test of my cloned voice." --ref refs\me.wav --out output\hello.wav
 ```

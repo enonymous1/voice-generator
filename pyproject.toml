@@ -18,7 +18,14 @@ dependencies = []
 # Each real backend lives in its own extra (and, in practice, its own venv):
 # Chatterbox, CosyVoice and Qwen3-TTS pin conflicting torch / CUDA stacks,
 # so they are never installed into the same environment.
-chatterbox = ["chatterbox-tts"]
+# setuptools<81: Chatterbox Turbo's watermarking dep (resemble-perth)
+# imports pkg_resources, which setuptools removed in 81. perth swallows
+# that ImportError and sets PerthImplicitWatermarker = None, so
+# ChatterboxTurboTTS.from_pretrained then fails at load time with the
+# opaque "TypeError: 'NoneType' object is not callable" (first seen on
+# the target Windows box, 2026-11-09, after a successful 4 GB download).
+# Keep the pin until upstream perth drops the pkg_resources import.
+chatterbox = ["chatterbox-tts", "setuptools<81"]
 qwen3 = ["qwen-tts"]
 dev = ["pytest", "ruff"]
 

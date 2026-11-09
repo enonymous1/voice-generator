@@ -356,6 +356,7 @@ which backends are importable in this env, ffmpeg on PATH.
 | `torch … CUDA not available` in `doctor` | CPU-only torch wheel, or driver too old → reinstall the backend extra in a *fresh* venv; update the Nvidia driver. |
 | Backend "not installed in this environment" | You're in the wrong venv → activate that backend's env (each backend has its own; this is by design). |
 | First synthesis hangs for minutes | It's downloading model weights from Hugging Face (one-time, several GB). Later runs are offline. |
+| Chatterbox: `TypeError: 'NoneType' object is not callable` at `PerthImplicitWatermarker` | Turbo's watermarking dep (`resemble-perth`) imports `pkg_resources`, removed in setuptools 81+; perth swallows its own import error, so it only surfaces at model load, after the download. In the Chatterbox venv: `pip install "setuptools<81"` and retry. New installs get the pin via the `chatterbox` extra. Workaround without the fix: `--variant original` never touches Perth. |
 | `OutOfMemoryError` / CUDA OOM on 12 GB | Something else holds VRAM → close it; for Qwen3 try `--model-size 0.6b`; render stages sequentially, never in parallel. |
 | Clone sounds like a different person | Noisy/multi-speaker/short reference, or transcript doesn't match audio word-for-word (Qwen3/CosyVoice) → re-record clean, fix the transcript. |
 | Clone sounds right but "flat" | Reference delivery was flat, or Chatterbox `--exaggeration` too low → raise to 0.6–0.8; re-record with more expression. |

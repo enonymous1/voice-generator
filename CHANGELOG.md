@@ -5,6 +5,16 @@ All notable changes to voice-generator, following
 
 ## [Unreleased]
 
+### Fixed
+- Chatterbox Turbo failed on first render with `TypeError: 'NoneType'
+  object is not callable` at `PerthImplicitWatermarker` (seen
+  2026-11-09 on the target Windows box, after a successful 4 GB model
+  download): `resemble-perth` imports `pkg_resources`, removed in
+  setuptools 81+, and perth swallows the resulting ImportError. The
+  `chatterbox` extra now pins `setuptools<81`; existing venvs need
+  `pip install "setuptools<81"` once. Documented in SETUP.md and the
+  README troubleshooting table.
+
 ### Added
 - `SETUP.md` — ordered Windows quickstart (prove the pipeline, record
   the reference, first Chatterbox render, Qwen3 A/B) for first-time
