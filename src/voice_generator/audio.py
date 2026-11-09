@@ -21,15 +21,30 @@ class WavInfo:
 
 
 def wav_info(path: str | Path) -> WavInfo:
+    """Read a WAV header. Raises the stdlib's wave.Error, with help attached.
+
+    The stdlib `wave` module only reads integer PCM. The error it raises
+    for anything else — `unknown format: 3` for a 32-bit float WAV, which
+    is what torchaudio writes for float32 tensors and what some recorders
+    produce — names a number, not a cause. The re-raised message keeps
+    the original text and adds the conversion command, so the user sees a
+    fix instead of a format tag.
+    """
     p = Path(path)
-    with wave.open(str(p), "rb") as w:
-        return WavInfo(
-            path=p,
-            channels=w.getnchannels(),
-            sample_width=w.getsampwidth(),
-            sample_rate=w.getframerate(),
-            frames=w.getnframes(),
-        )
+    try:
+        with wave.open(str(p), "rb") as w:
+            return WavInfo(
+                path=p,
+                channels=w.getnchannels(),
+                sample_width=w.getsampwidth(),
+                sample_rate=w.getframerate(),
+                frames=w.getnframes(),
+            )
+    except wave.Error as exc:
+        raise wave.Error(
+            f"{p}: {exc} — this tool only reads PCM WAVs; "
+            f"convert first, e.g. ffmpeg -i {p} -c:a pcm_s16le {p.with_stem(p.stem + '_pcm16')}"
+        ) from exc
 
 
 def check_reference(path: str | Path, *, min_s: float = 3.0, ideal_s: float = 10.0) -> list[str]:

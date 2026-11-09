@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from voice_generator.audio import wav_info
+from voice_generator.audio import wav_info, write_pcm16_wav
 from voice_generator.backends.base import (
     BaseBackend,
     SynthesisRequest,
@@ -24,6 +24,26 @@ from voice_generator.backends.base import (
 )
 
 _VARIANTS = ("original", "turbo", "multilingual")
+
+
+def _to_mono_samples(wav: object) -> list[float]:
+    """Flatten a model output tensor (1, N) to a mono float sample list.
+
+    The tensor may live on CUDA, so detach + move to CPU first. Plain
+    nested lists (as in tests) pass through the same path.
+    """
+    tensor = wav.detach().cpu() if hasattr(wav, "detach") else wav  # type: ignore[attr-defined]
+    if isinstance(tensor, (list, tuple)):
+        # Plain nested list [[...]] (tests / non-torch callers): unwrap the
+        # single channel the same way ndim == 2 does for tensors below.
+        if tensor and isinstance(tensor[0], (list, tuple)):
+            tensor = tensor[0]
+        return [float(s) for s in tensor]
+    if getattr(tensor, "ndim", 1) == 2:
+        tensor = tensor[0]  # type: ignore[index]
+    if hasattr(tensor, "tolist"):
+        return [float(s) for s in tensor.tolist()]  # type: ignore[attr-defined]
+    return [float(s) for s in tensor]  # type: ignore[union-attr]
 
 
 class ChatterboxBackend(BaseBackend):
@@ -71,8 +91,6 @@ class ChatterboxBackend(BaseBackend):
     def synthesize(self, request: SynthesisRequest, out_wav: Path) -> SynthesisResult:
         require_reference(request, "chatterbox")
         model = self._load()
-        import torchaudio
-
         kwargs: dict[str, object] = {
             "exaggeration": request.exaggeration,
             "cfg_weight": request.cfg_weight,
@@ -82,8 +100,14 @@ class ChatterboxBackend(BaseBackend):
         wav = model.generate(  # type: ignore[attr-defined]
             request.text, audio_prompt_path=str(request.reference_wav), **kwargs
         )
-        out_wav.parent.mkdir(parents=True, exist_ok=True)
-        torchaudio.save(str(out_wav), wav, model.sr)  # type: ignore[attr-defined]
+        # Write PCM-16 via the shared writer, NOT torchaudio.save: torchaudio
+        # writes a float32 tensor as a 32-bit float WAV (format tag 3), and
+        # this project's stdlib WAV reader (wave.open) only reads integer
+        # PCM — so the very next line (wav_info) failed with the cryptic
+        # "unknown format: 3" on the first real GPU render (2026-11-09),
+        # after the model had already rendered the audio. Qwen3/CosyVoice
+        # already used the shared writer; Chatterbox was the odd one out.
+        write_pcm16_wav(out_wav, _to_mono_samples(wav), model.sr)  # type: ignore[attr-defined]
         return SynthesisResult(
             wav_path=out_wav,
             backend=f"chatterbox:{self.variant}",

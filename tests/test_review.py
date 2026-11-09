@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from voice_generator.audio import write_pcm16_wav
+from voice_generator.audio import wav_info, write_pcm16_wav
 from voice_generator.backends.base import resolve_device
 from voice_generator.backends.qwen_backend import Qwen3Backend
 from voice_generator.cli import main
@@ -116,3 +116,33 @@ def test_cli_check_ref_missing_is_clean_error(tmp_path: Path, capsys):
 def test_cli_doctor_runs_without_gpu(tmp_path: Path, capsys):
     assert main(["doctor"]) == 0
     assert "python" in capsys.readouterr().out
+
+
+def _make_float_wav(path: Path) -> Path:
+    """A valid 32-bit float WAV (format tag 3), as torchaudio writes for
+    float32 tensors and some recorders produce."""
+    data = struct.pack("<2400f", *([0.0] * 2400))
+    header = struct.pack(
+        "<4sI4s4sIHHIIHH4sI",
+        b"RIFF",
+        36 + len(data),
+        b"WAVE",
+        b"fmt ",
+        16,
+        3,
+        1,
+        24000,
+        24000 * 4,
+        4,
+        32,
+        b"data",
+        len(data),
+    )
+    path.write_bytes(header + data)
+    return path
+
+
+def test_wav_info_float_wav_names_the_fix(tmp_path: Path):
+    # The bare stdlib message is "unknown format: 3" — a number, not a fix.
+    with pytest.raises(wave.Error, match="pcm_s16le"):
+        wav_info(_make_float_wav(tmp_path / "float.wav"))

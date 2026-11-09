@@ -75,7 +75,10 @@ mostly decided here, before any model runs.
 
    It flags clips that are too short, stereo, or low sample-rate.
    Target: ~10 seconds for Chatterbox (3–10 s is enough for Qwen3 /
-   CosyVoice), mono, 16 kHz or higher, one speaker only.
+   CosyVoice), mono, 16 kHz or higher, integer PCM, one speaker only.
+   A 32-bit float WAV (format tag 3, what some recorders write) fails
+   here with `unknown format: 3` — convert it first:
+   `ffmpeg -i refs\me.wav -c:a pcm_s16le refs\me_pcm16.wav`.
 
 ## 3. Install Chatterbox and hear your voice (start here)
 
@@ -114,7 +117,9 @@ from Hugging Face (one-time, a few GB). Listen to `output\hello.wav`.
 - Sounds like someone else, or muddy? Re-record the clip (step 2).
   A bad reference is the cause 90% of the time — do not try to fix it
   with settings.
-- Sounds like you but flat? Re-render with `--exaggeration 0.7`.
+- Sounds like you but flat? Turbo ignores `--exaggeration` — re-record
+  with more expression, or try `--variant original --exaggeration 0.7`
+  (the original variant honours those knobs; Turbo does not).
 - Sounds good? Move on. Don't chase perfection on one sentence.
 
 Then render a real script to check chunk joins and pacing:

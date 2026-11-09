@@ -148,7 +148,9 @@ First synthesis downloads the Chatterbox weights from Hugging Face
 Chatterbox variants (`--variant`): `turbo` (default — English, fast,
 paralinguistic tags like `[laugh]`, `[sigh]`), `original` (English,
 strongest CFG / exaggeration control), `multilingual` (23+ languages;
-pass `--language es`, `fr`, etc.).
+pass `--language es`, `fr`, etc.). Note: Turbo **ignores**
+`--exaggeration` and `--cfg` (upstream logs a warning); use `original`
+for those knobs.
 
 ### Qwen3-TTS
 
@@ -358,6 +360,7 @@ which backends are importable in this env, ffmpeg on PATH.
 | First synthesis hangs for minutes | It's downloading model weights from Hugging Face (one-time, several GB). Later runs are offline. |
 | Chatterbox: `TypeError: 'NoneType' object is not callable` at `PerthImplicitWatermarker` | Turbo's watermarking dep (`resemble-perth`) imports `pkg_resources`, removed in setuptools 81+; perth swallows its own import error, so it only surfaces at model load, after the download. In the Chatterbox venv: `pip install "setuptools<81"` and retry. New installs get the pin via the `chatterbox` extra. Workaround without the fix: `--variant original` never touches Perth. |
 | `OutOfMemoryError` / CUDA OOM on 12 GB | Something else holds VRAM → close it; for Qwen3 try `--model-size 0.6b`; render stages sequentially, never in parallel. |
+| `Error: unknown format: 3` | A 32-bit float WAV, which stdlib `wave` cannot read: either the reference clip is float (convert it: `ffmpeg -i refs\me.wav -c:a pcm_s16le refs\me_pcm16.wav`) or, before this fix, the Chatterbox backend wrote a float WAV itself — fixed in v0.3.1 by writing PCM-16 via the shared writer. |
 | Clone sounds like a different person | Noisy/multi-speaker/short reference, or transcript doesn't match audio word-for-word (Qwen3/CosyVoice) → re-record clean, fix the transcript. |
 | Clone sounds right but "flat" | Reference delivery was flat, or Chatterbox `--exaggeration` too low → raise to 0.6–0.8; re-record with more expression. |
 | Robotic gaps between sentences | Chunk boundaries → raise `--max-chars` a bit, or accept it (Stage 2 hides a lot). |

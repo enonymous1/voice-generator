@@ -6,6 +6,16 @@ All notable changes to voice-generator, following
 ## [Unreleased]
 
 ### Fixed
+- Chatterbox rendered audio and then failed with `Error: unknown format:
+  3` (seen 2026-11-09 on the first real GPU render, after the Perth
+  fix): the backend wrote its float32 output with `torchaudio.save`,
+  which produces a 32-bit float WAV, and this project's stdlib WAV
+  reader only reads integer PCM. The backend now writes PCM-16 via the
+  shared `write_pcm16_wav` like Qwen3/CosyVoice, and `wav_info` now
+  reports a float WAV with the conversion command instead of the bare
+  format tag. (Also fixed: the SETUP.md advice to re-render flat Turbo
+  output with `--exaggeration` — Turbo ignores that knob; only
+  `original` honours it.)
 - Chatterbox Turbo failed on first render with `TypeError: 'NoneType'
   object is not callable` at `PerthImplicitWatermarker` (seen
   2026-11-09 on the target Windows box, after a successful 4 GB model
