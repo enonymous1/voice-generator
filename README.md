@@ -105,6 +105,11 @@ gets a slow render or a clear error, not a cryptic CUDA failure.
 
 ## Installation
 
+New here? Start with [`SETUP.md`](SETUP.md) — the ordered, copy-paste
+path from an empty folder to your first cloned render. This section is
+the same material as reference; the recording script to read aloud is
+[`recording-script.txt`](recording-script.txt).
+
 ### Core only (5-minute smoke test, no GPU, no models)
 
 This verifies the whole flow — CLI, chunking, WAV output, manifest —
@@ -209,7 +214,10 @@ Notes:
 
 ### Recording a good reference clip
 
-Clone quality is mostly decided here, before any model runs.
+Clone quality is mostly decided here, before any model runs. The
+ready-made text to read is [`recording-script.txt`](recording-script.txt)
+(~50 seconds; trim to the cleanest 10–30 s) — it doubles as the
+transcript, so copy what you actually read into `refs\me.txt`.
 
 - **Length:** ~10 s for Chatterbox; ~3–10 s for Qwen3 / CosyVoice.
   Longer is *not* better — 10–30 s of clean speech beats a noisy minute.

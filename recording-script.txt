@@ -1,0 +1,5 @@
+Hi, I'm Justin. I live in Virginia, and I'm building a digital version of my own voice. This recording is the first test, so I'm speaking the way I normally talk, not too fast, not too slow, just steady and clear.
+
+The idea is simple. I read a few sentences out loud, the computer learns how I sound, and then it can read anything else in my voice. If this works, the next step is putting that voice on a talking head, so it looks and sounds like me. For now, though, I just want to hear whether the clone actually sounds like me on a normal day, in a normal room, with no studio tricks.
+
+So, does it sound right? Let's find out. Twenty twenty-six is going to be an interesting year.

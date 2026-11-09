@@ -5,6 +5,14 @@ All notable changes to voice-generator, following
 
 ## [Unreleased]
 
+### Added
+- `SETUP.md` — ordered Windows quickstart (prove the pipeline, record
+  the reference, first Chatterbox render, Qwen3 A/B) for first-time
+  voice testing, with the README kept as the full reference.
+- `recording-script.txt` — ready-made text to read aloud for the
+  reference clip (~50 s; trim to the cleanest 10–30 s). It doubles as
+  the transcript (`refs\me.txt`) for Qwen3-TTS / CosyVoice.
+
 ### Changed
 - Repository renamed from `ss-voiceGenerator` to `voice-generator`
   (approved 2026-10-31). Display names only — directory, README title,
