@@ -63,6 +63,7 @@ def _doctor() -> int:
         "chatterbox": 'not installed — pip install -e ".[chatterbox]" in its venv',
         "qwen3": 'not installed — pip install -e ".[qwen3]" in its venv',
         "cosyvoice": "not importable here — it lives in its own Conda env + repo clone",
+        "voxcpm": 'not installed — pip install -e ".[voxcpm]" in its venv',
     }
     for name in available_backends():
         module = BACKEND_IMPORTS[name]
@@ -97,6 +98,11 @@ def _synth(args: argparse.Namespace) -> int:
         cosy_model_dir=args.cosy_model_dir,
         cosy_mode=args.cosy_mode,
         cosy_version=args.cosy_version,
+        voxcpm_model=args.voxcpm_model,
+        voxcpm_mode=args.voxcpm_mode,
+        voxcpm_cfg=args.voxcpm_cfg,
+        voxcpm_timesteps=args.voxcpm_timesteps,
+        voxcpm_optimize=args.voxcpm_optimize,
     )
     print(f"\nDone: {result.wav_path}  ({result.duration_s:.1f}s, {result.chunks} chunk(s))")
     print(f"Manifest: {result.manifest_path}")
@@ -131,7 +137,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--cfg", type=float, default=0.5, dest="cfg_weight")
     p.add_argument("--max-chars", type=int, default=300)
     p.add_argument(
-        "--ref-text", default=None, help="exact transcript of the reference clip (Qwen3)"
+        "--ref-text",
+        default=None,
+        help="exact transcript of the reference clip (Qwen3, CosyVoice, VoxCPM ultimate mode)",
     )
     p.add_argument(
         "--ref-text-file", type=Path, default=None, help="file containing that transcript"
@@ -159,6 +167,35 @@ def main(argv: list[str] | None = None) -> int:
         help="CosyVoice clone mode (cross_lingual needs no reference transcript)",
     )
     p.add_argument("--cosy-version", default="3", choices=["3", "2"], help="CosyVoice version")
+    p.add_argument(
+        "--voxcpm-model",
+        default="openbmb/VoxCPM2",
+        help="VoxCPM2 model id on Hugging Face",
+    )
+    p.add_argument(
+        "--voxcpm-mode",
+        default="controllable",
+        choices=["controllable", "ultimate"],
+        help="VoxCPM2 clone mode (ultimate needs the reference transcript)",
+    )
+    p.add_argument(
+        "--voxcpm-cfg",
+        type=float,
+        default=2.0,
+        help="VoxCPM2 guidance scale (upstream default 2.0, typical 1.0–3.0)",
+    )
+    p.add_argument(
+        "--voxcpm-timesteps",
+        type=int,
+        default=10,
+        help="VoxCPM2 diffusion steps (upstream default 10, recommended 4–30)",
+    )
+    p.add_argument(
+        "--voxcpm-no-optimize",
+        action="store_false",
+        dest="voxcpm_optimize",
+        help="VoxCPM2: skip torch.compile (use if the first render fails on Triton/compile errors)",
+    )
 
     args = parser.parse_args(argv)
 

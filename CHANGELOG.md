@@ -5,6 +5,40 @@ All notable changes to voice-generator, following
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-11-10 (VoxCPM2 backend)
+
+### Added
+- VoxCPM2 backend (`--backend voxcpm`, OpenBMB, Apache-2.0 code +
+  weights): `pip install -e ".[voxcpm]"` in its own Python 3.12 venv
+  (upstream: Python 3.10–<3.13, PyTorch >= 2.5, CUDA >= 12). Clones
+  from a 5–30 s reference clip with no transcript in the default
+  controllable mode; `--voxcpm-mode ultimate` passes the clip plus its
+  exact transcript for maximum similarity. Output is 48 kHz PCM-16
+  via the shared writer. Knobs: `--voxcpm-model`
+  (default `openbmb/VoxCPM2`), `--voxcpm-cfg` (default 2.0),
+  `--voxcpm-timesteps` (default 10).
+- VoxCPM2 torch.compile fallback: the backend loads with
+  `optimize=True` (upstream default; the vendor's RTF ~0.30 on a 4090
+  was measured with it) and retries once with `optimize=False` when a
+  load or a first generate fails with a Triton/compile-shaped error —
+  the Windows failure mode the 2026-11-10 model survey flagged.
+  `--voxcpm-no-optimize` skips the attempt outright. The effective
+  value is recorded in the manifest.
+- `tools/ab_compare.py` gains a fourth side (`--voxcpm-python`,
+  `--voxcpm-mode`) so the RTX 3060 bench can run all four backends on
+  the same script and clip.
+
+### Changed
+- Roadmap: v0.4.0 is the VoxCPM2 backend; the Stage 2 handoff moves to
+  v0.5.0.
+
+### Not yet verified
+- No RTX 3060 speed figure exists for VoxCPM2 anywhere public — the
+  vendor's RTF ~0.30 is on a 4090. The 3060 bench (same script, same
+  clip, `tools/ab_compare.py`) is the gate before VoxCPM2 becomes the
+  recommended fast path. The denoiser is not loaded
+  (`load_denoiser=False`); there is no denoise knob in v0.4.0.
+
 ## [0.3.2] — 2026-11-09 (first real GPU runs)
 
 ### Fixed

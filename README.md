@@ -14,19 +14,19 @@ exactly how that WAV was made.
 
 `voice-gen` is a small command-line tool with one job: script in, cloned
 voice out. It splits a long script into sentence-sized chunks, renders
-each chunk through one of three interchangeable local TTS engines, joins
+each chunk through one of four interchangeable local TTS engines, joins
 the chunks into a single WAV, and writes a provenance manifest beside it.
 
 ![Architecture: script → chunks → backend → WAV + manifest](docs/assets/architecture.svg)
 
-### Why three engines behind one CLI
+### Why four engines behind one CLI
 
 The TTS field moves monthly, and the candidate models have wildly
 different licenses and install stories. One interface means you can
 compare engines on your own voice and script (see
 [A/B compare](#ab-compare)) and swap later without touching the CLI,
 the chunking, or Stage 2. Backends are isolated in separate environments
-because Chatterbox, Qwen3-TTS, and CosyVoice pin conflicting torch/CUDA
+because Chatterbox, Qwen3-TTS, CosyVoice, and VoxCPM2 pin conflicting torch/CUDA
 stacks — they are never installed into the same environment, and the
 core package itself has **no torch dependency**.
 
@@ -36,11 +36,14 @@ core package itself has **no torch dependency**.
 | `chatterbox` | Working (v0.1) | MIT — outputs carry a PerTh watermark | ~10 s, no transcript | ~1.5–6 GB |
 | `qwen3` | Working (v0.2) | Apache-2.0 | ~3 s **+ exact transcript** | ~4–8 GB |
 | `cosyvoice` | Working (v0.3) | Apache-2.0 | ~3 s **+ exact transcript** | ~8–10 GB |
+| `voxcpm` | Working (v0.4) | Apache-2.0 | ~5–10 s, no transcript (controllable); + transcript (ultimate) | ~8 GB (vendor) |
 
 **Which to start with:** Chatterbox — easiest install, no transcript
 bookkeeping. Qwen3-TTS next for a smaller/faster Apache-2.0 model.
-CosyVoice 3 for multilingual work or Chinese dialects, accepting the
-hardest install.
+VoxCPM2 is the fast path to benchmark: one-line pip install, no
+transcript in its default mode, vendor RTF ~0.30 on a 4090 (no RTX 3060
+figure published yet — measure it before trusting it). CosyVoice 3 for
+multilingual work or Chinese dialects, accepting the hardest install.
 
 Explicitly **not** included, after license research: Fish Speech
 (non-commercial weights), IndexTTS-2 (custom bilibili license —
@@ -63,7 +66,7 @@ output.wav ◄── concat_wavs() ◄── chunk_001.wav … chunk_N.wav
 1. **Chunk** — split on sentence boundaries up to `--max-chars`
    (default 300); a single over-long sentence is hard-split on
    commas/spaces. Smaller chunks = more consistent voice; 250–350 is the
-   sweet spot for all three engines.
+   sweet spot for all four engines.
 2. **Validate** — the reference clip is checked (length, channels, rate)
    and warnings printed before synthesis starts.
 3. **Synthesize** — the backend loads its model *once*, renders each
@@ -89,9 +92,9 @@ Software you need before installing:
 
 - **Git** — to clone this project (and the CosyVoice repo, if you use it).
 - **Python, per backend** — Chatterbox uses 3.11, Qwen3-TTS upstream
-  recommends 3.12, CosyVoice uses Conda with 3.10. The `py` launcher on
-  Windows lets all three coexist; that split is by design, not an
-  accident.
+  recommends 3.12, VoxCPM2 needs 3.10–<3.13 (3.12 works), CosyVoice
+  uses Conda with 3.10. The `py` launcher on Windows lets all four
+  coexist; that split is by design, not an accident.
 - **Conda / Miniconda** — only for the CosyVoice backend.
 - **sox** — only for CosyVoice (upstream requirement; on Windows install
   the sox binary and put it on PATH). Get it as `sox-14.4.2-win32.zip`
@@ -183,6 +186,49 @@ Qwen3 cloning facts (verified against the upstream README, 2026-10-22):
   codes for you (`en` → `English`, `es` → `Spanish`, …). Supported:
   en, zh, ja, ko, de, fr, ru, pt, es, it.
 
+### VoxCPM2
+
+```bat
+py -3.12 -m venv .venv-voxcpm
+.venv-voxcpm\Scripts\activate
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+pip install -e ".[voxcpm]"
+voice-gen doctor
+python -c "import torch; print(torch.cuda.is_available())"
+```
+
+VoxCPM2 facts (verified against the upstream package docs, 2026-11-10):
+
+- One-line pip install, Python 3.10–<3.13, PyTorch ≥ 2.5, CUDA ≥ 12.
+  First run downloads the `openbmb/VoxCPM2` weights from Hugging Face
+  (2B model, ~8 GB VRAM per the vendor). The CUDA torch install above
+  matters — a CPU-only torch build will render on CPU, slowly, with
+  only the stderr warning to show for it (same trap as Qwen3).
+- **Controllable mode (default) needs no transcript** — pass the
+  reference clip and go. `--voxcpm-mode ultimate` is the
+  transcript-paired mode: same clip as prompt + reference, plus its
+  exact transcript via `--ref-text` / `--ref-text-file`, for maximum
+  similarity.
+- Output is **48 kHz** (the other backends are 24 kHz); the manifest
+  records the sample rate, and chunk concatenation still works because
+  every chunk in a run comes from the same backend.
+- Knobs: `--voxcpm-cfg` (default 2.0, typical 1.0–3.0),
+  `--voxcpm-timesteps` (default 10, recommended 4–30),
+  `--voxcpm-model` (default `openbmb/VoxCPM2`).
+- **torch.compile / Triton on Windows:** the backend loads with
+  `optimize=True` (the vendor's RTF ~0.30 on a 4090 was measured with
+  it) and retries once with `optimize=False` if a load or a first
+  generate fails with a Triton/compile-shaped error. If that still
+  fails, pass `--voxcpm-no-optimize` and retry — that skips
+  `torch.compile` outright, at some speed cost. The effective value is
+  recorded in the manifest.
+- The denoiser is not loaded (`load_denoiser=False`); it only enhances
+  noisy prompt audio, and this project's reference clips are clean
+  recordings. There is no denoise knob in v0.4.0.
+- **No RTX 3060 speed figure exists anywhere public.** The vendor's
+  RTF ~0.30 is on a 4090. Run the A/B compare on your own box before
+  making VoxCPM2 the default fast path.
+
 ### CosyVoice 3 (advanced)
 
 CosyVoice is **not a pip package**. Upstream's path (verified 2026-10-22):
@@ -215,7 +261,7 @@ Notes:
   With `--cosy-version 2` the bare transcript is used. Don't add the
   prefix yourself — if your transcript file already contains
   `<|endofprompt|>`, the backend leaves it untouched.
-- On Windows this is the fiddliest install of the three. If it fights
+- On Windows this is the fiddliest install of the four. If it fights
   you, that's expected — Chatterbox and Qwen3 already cover most use
   cases, and WSL2 is a legitimate escape hatch for this backend only.
 
@@ -226,7 +272,8 @@ ready-made text to read is [`recording-script.txt`](recording-script.txt)
 (~50 seconds; trim to the cleanest 10–30 s) — it doubles as the
 transcript, so copy what you actually read into `refs\me.txt`.
 
-- **Length:** ~10 s for Chatterbox; ~3–10 s for Qwen3 / CosyVoice.
+- **Length:** ~10 s for Chatterbox; ~3–10 s for Qwen3 / CosyVoice;
+  ~5–10 s for VoxCPM2 (its practical range is 5–30 s).
   Longer is *not* better — 10–30 s of clean speech beats a noisy minute.
 - **Content:** natural, expressive, normal speaking pace. Avoid
   whispering, shouting, or a "radio voice".
@@ -273,6 +320,10 @@ voice-gen synth --backend qwen3 --text "No transcript handy." --ref refs\me_3s.w
 :: 6. CosyVoice 3 (activate the cosyvoice Conda env first)
 voice-gen synth --backend cosyvoice --script script.txt --ref refs\me.wav --ref-text-file refs\me.txt --cosyvoice-home C:\path\to\CosyVoice --out output\ep1_cosy.wav
 voice-gen synth --backend cosyvoice --text "Cross lingual, no transcript." --ref refs\me.wav --cosy-mode cross_lingual --cosyvoice-home C:\path\to\CosyVoice --out output\cross.wav
+
+:: 7. VoxCPM2 (activate .venv-voxcpm first)
+voice-gen synth --backend voxcpm --script script.txt --ref refs\me_10s.wav --out output\ep1_voxcpm.wav
+voice-gen synth --backend voxcpm --script script.txt --ref refs\me_10s.wav --ref-text-file refs\me_10s.txt --voxcpm-mode ultimate --out output\ep1_voxcpm_ult.wav
 ```
 
 Output per render: the WAV, a `.manifest.json` beside it, and a
@@ -315,17 +366,20 @@ The backends live in separate environments, so no single interpreter can
 import two of them. `tools\ab_compare.py` (stdlib-only — run it with any
 Python) drives each environment's interpreter as a subprocess with the
 *same* script and reference, then compares the manifests. Any subset of
-the three sides may be given.
+the four sides may be given.
 
 ```bat
-python tools\ab_compare.py --script script.txt --ref refs\me.wav --ref-text-file refs\me.txt --chatterbox-python .venv-chatterbox\Scripts\python.exe --qwen-python .venv-qwen3\Scripts\python.exe --cosy-python C:\Users\you\miniconda3\envs\cosyvoice\python.exe --cosyvoice-home C:\path\to\CosyVoice --out-dir output\ab1
+python tools\ab_compare.py --script script.txt --ref refs\me.wav --ref-text-file refs\me.txt --chatterbox-python .venv-chatterbox\Scripts\python.exe --qwen-python .venv-qwen3\Scripts\python.exe --cosy-python C:\Users\you\miniconda3\envs\cosyvoice\python.exe --cosyvoice-home C:\path\to\CosyVoice --voxcpm-python .venv-voxcpm\Scripts\python.exe --out-dir output\ab1
 ```
 
-Produces `chatterbox.wav`, `qwen3.wav`, `cosyvoice.wav`, and
-`ab_comparison.json` (per-backend duration, sample rate, wall-clock
+Produces `chatterbox.wav`, `qwen3.wav`, `cosyvoice.wav`, `voxcpm.wav`,
+and `ab_comparison.json` (per-backend duration, sample rate, wall-clock
 time). A backend that isn't installed doesn't crash the run — its
 failure and the install hint are recorded in the JSON. The comparison
-itself is your ears; the JSON is diagnostics, not a quality score.
+itself is your ears; the JSON is diagnostics, not a quality score. The
+VoxCPM2 side runs in its default controllable mode; add
+`--voxcpm-mode ultimate` (with `--ref-text-file`) to compare the
+transcript-paired mode instead.
 
 ### CLI reference
 
@@ -341,13 +395,13 @@ which backends are importable in this env, ffmpeg on PATH.
 | `--text` / `--script` | (one required) | all | inline text, or a `.txt` script file |
 | `--ref` | — | all real | reference voice clip (.wav) |
 | `--out` | (required) | all | output `.wav` path |
-| `--backend` | `chatterbox` | all | `mock` / `chatterbox` / `qwen3` / `cosyvoice` |
+| `--backend` | `chatterbox` | all | `mock` / `chatterbox` / `qwen3` / `cosyvoice` / `voxcpm` |
 | `--language` | `en` | all | ISO code; Qwen maps to full names |
 | `--max-chars` | `300` | all | chunk size ceiling |
 | `--variant` | `turbo` | chatterbox | `original` / `turbo` / `multilingual` |
 | `--exaggeration` | `0.5` | chatterbox | emotion intensity 0–1+ |
 | `--cfg` | `0.5` | chatterbox | CFG weight (adherence vs freedom) |
-| `--ref-text` / `--ref-text-file` | — | qwen3, cosyvoice | exact transcript of `--ref` |
+| `--ref-text` / `--ref-text-file` | — | qwen3, cosyvoice, voxcpm (ultimate) | exact transcript of `--ref` |
 | `--x-vector-only` | off | qwen3 | clone from speaker embedding only |
 | `--model-size` | `1.7b` | qwen3 | `1.7b` / `0.6b` Base checkpoint |
 | `--attn` | `sdpa` | qwen3 | `sdpa` / `eager` / `flash_attention_2` |
@@ -355,6 +409,11 @@ which backends are importable in this env, ffmpeg on PATH.
 | `--cosy-model-dir` | clone default | cosyvoice | model snapshot directory |
 | `--cosy-mode` | `zero_shot` | cosyvoice | `zero_shot` / `cross_lingual` |
 | `--cosy-version` | `3` | cosyvoice | prompt format / default model dir |
+| `--voxcpm-model` | `openbmb/VoxCPM2` | voxcpm | Hugging Face model id |
+| `--voxcpm-mode` | `controllable` | voxcpm | `controllable` / `ultimate` (ultimate needs `--ref-text`) |
+| `--voxcpm-cfg` | `2.0` | voxcpm | guidance scale, typical 1.0–3.0 |
+| `--voxcpm-timesteps` | `10` | voxcpm | diffusion steps, recommended 4–30 |
+| `--voxcpm-no-optimize` | off | voxcpm | skip torch.compile (Triton/compile failures) |
 
 ### Troubleshooting
 
@@ -375,6 +434,9 @@ which backends are importable in this env, ffmpeg on PATH.
 | CosyVoice: `No module named cosyvoice` | Not in the Conda env, or `--cosyvoice-home` wrong → the backend's error message prints the full setup recipe. |
 | CosyVoice: `No module named matcha` | Submodules missing → `git submodule update --init --recursive` in the clone. |
 | CosyVoice: sox errors / silent failures | sox not installed or not on PATH → install sox from the SourceForge zip (`choco install sox` no longer works), add it to PATH, restart the terminal (or VS Code), verify with `sox --version`. |
+| VoxCPM2: Triton / `torch.compile` error at load or first chunk | Windows compile friction → the backend retries once unoptimized on its own; if it still fails, pass `--voxcpm-no-optimize` and retry. |
+| VoxCPM2: `Could not load libtorchcodec` with the reference clip | torchaudio ≥ 2.9 defaults to torchcodec for audio loading → install system FFmpeg, or `pip install soundfile` in the VoxCPM2 venv so torchaudio can use the soundfile backend. |
+| VoxCPM2: ultimate-mode transcript error | Ultimate mode needs `--ref-text` / `--ref-text-file`; for transcript-free cloning drop `--voxcpm-mode` (controllable is the default). |
 | Garbled / wrong-language output | `--language` mismatch, or Chatterbox `turbo`/`original` (English-only) used for non-English → use `multilingual` or the right `--language`. |
 | WAV plays but is silent / a tone | You rendered with `--backend mock`. It writes a tone *on purpose* — switch to a real backend. |
 
@@ -389,13 +451,16 @@ which backends are importable in this env, ffmpeg on PATH.
   is roughly 40–60 chunks. Model load time is paid once per run, so
   batch scripts into one run instead of many small ones.
 - Qwen3 `0.6b` is the fast/small option; `1.7b` is the quality option.
-  Chatterbox `turbo` is faster than `original`.
+  Chatterbox `turbo` is faster than `original`. VoxCPM2's vendor RTF
+  ~0.30 is on a 4090 — no RTX 3060 figure exists yet, so the A/B
+  wall-clock time on your own box is the number that matters, not the
+  vendor table.
 
 ## Local Development
 
 ```bat
 pip install -e ".[dev]"
-pytest        :: 27 tests, no GPU, no downloads, no torch needed
+pytest        :: 42 tests, no GPU, no downloads, no torch needed
 ruff check src tests tools
 ```
 
@@ -441,7 +506,8 @@ voice-generator/
 │       ├── mock_backend.py   # tone WAV, realistic duration, zero deps
 │       ├── chatterbox_backend.py
 │       ├── qwen_backend.py
-│       └── cosy_backend.py
+│       ├── cosy_backend.py
+│       └── voxcpm_backend.py
 ├── tools/
 │   └── ab_compare.py         # cross-environment A/B rendering
 ├── docs/assets/
@@ -451,14 +517,15 @@ voice-generator/
 
 **Known limitations / honest status**
 
-- **v0.3.2.** Verified on a GPU-less Linux box: 33/33 tests, ruff
-  clean, wheel builds as 0.3.2 from the single version source. Real
+- **v0.4.0.** Verified on a GPU-less Linux box: 42/42 tests, ruff
+  clean, wheel builds as 0.4.0 from the single version source. Real
   renders confirmed on the RTX 3060 (Chatterbox + Qwen3, 2026-11-09);
   the first-render bugs they surfaced (Perth/setuptools, float WAV,
   CPU-only torch) are fixed in this release.
-- **Not yet verified:** CosyVoice 3 on Windows (trial paused — the
-  Conda/pynini install friction is not worth it for English-only use),
-  and any Stage 2 talking-head render.
+- **Not yet verified:** VoxCPM2 on the RTX 3060 (no public 3060 speed
+  figure exists; the A/B bench is the gate), CosyVoice 3 on Windows
+  (trial paused — the Conda/pynini install friction is not worth it
+  for English-only use), and any Stage 2 talking-head render.
 - Japanese in CosyVoice cross-lingual mode needs katakana-converted text
   (upstream note).
 - Chatterbox outputs carry Resemble's imperceptible PerTh watermark —
@@ -478,7 +545,7 @@ is no server, no Docker image, and no hosted component to deploy.
 3. Run `voice-gen doctor` in each venv and confirm CUDA + VRAM.
 4. Run the mock smoke test, then one real render per backend, then the
    A/B compare on your own voice and script. That sequence is the
-   deployment gate: if all three pass, the box is deployed.
+   deployment gate: if every backend you use passes, the box is deployed.
 5. Model weights live in the Hugging Face cache on that box after first
    run; the box is then fully offline. Back up `refs/` (your reference
    clips + transcripts) separately — they are the irreplaceable inputs.
@@ -504,9 +571,9 @@ CLI) and note the CosyVoice backend's `sys.path` mutation — see
 `REVIEW.md` §3 for the embedding caveat.
 
 **Licenses:** this project is MIT. Chatterbox: MIT (code + weights).
-Qwen3-TTS: Apache-2.0. CosyVoice 2/3: Apache-2.0. Cloning a voice you
-don't have the rights to is your legal problem, not the models'. Use
-your own voice or get permission.
+Qwen3-TTS: Apache-2.0. CosyVoice 2/3: Apache-2.0. VoxCPM2: Apache-2.0
+(code + weights). Cloning a voice you don't have the rights to is your
+legal problem, not the models'. Use your own voice or get permission.
 
 ## Visual assets
 
@@ -531,8 +598,8 @@ destroys exactly the trust the tool needs.
    shown. Why it matters: it proves the 5-minute claim in under 20
    seconds of viewing.
 3. **A/B waveform figure — to capture after the first GPU renders.**
-   File: `docs/assets/ab-waveforms.png`. Content: one figure with three
-   aligned waveform strips (Chatterbox / Qwen3 / CosyVoice) for the
+   File: `docs/assets/ab-waveforms.png`. Content: one figure with four
+   aligned waveform strips (Chatterbox / Qwen3 / CosyVoice / VoxCPM2) for the
    *same* sentence, plus the `ab_comparison.json` duration/wall-time
    table beneath. Generate the strips from the real A/B output WAVs
    (e.g. with matplotlib or Audacity screenshots — not hand-drawn).
@@ -566,5 +633,7 @@ not.
 5. **v0.3.2 (this)** — first real GPU runs: Perth/setuptools pin,
    PCM-16 writer, CPU-fallback warning, SoX install docs, Qwen diag
    tool.
-6. v0.4 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
+6. **v0.4.0** — VoxCPM2 backend (controllable + ultimate clone modes,
+   torch.compile fallback, A/B tool extended to all four backends).
+7. v0.5 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
    MuseTalk): WAV + manifest in, lip-synced MP4 out.

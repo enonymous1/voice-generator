@@ -1,4 +1,4 @@
-"""A/B compare: render the SAME script + reference through up to three
+"""A/B compare: render the SAME script + reference through up to four
 backends and write a side-by-side comparison manifest.
 
 Why a subprocess tool instead of a library call: the backends live in
@@ -13,11 +13,14 @@ Usage:
       --chatterbox-python .venv-chatterbox/Scripts/python.exe ^
       --qwen-python .venv-qwen3/Scripts/python.exe ^
       --cosy-python <cosyvoice-conda-python> --cosyvoice-home C:/path/to/CosyVoice ^
+      --voxcpm-python .venv-voxcpm/Scripts/python.exe ^
       --out-dir output/ab1
 
 Any backend side may be omitted (that side is skipped), which also makes
-this usable for a single-backend timing run. Stdlib only — run it with
-any Python.
+this usable for a single-backend timing run. The VoxCPM2 side runs in
+its default controllable mode (no transcript needed); pass
+--ref-text-file as well to add an ultimate-mode side on the same clip.
+Stdlib only — run it with any Python.
 """
 
 from __future__ import annotations
@@ -75,7 +78,7 @@ def _run_backend(
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(
-        description="Render one script through up to three backends and compare"
+        description="Render one script through up to four backends and compare"
     )
     p.add_argument("--script", type=Path, required=True)
     p.add_argument("--ref", type=Path, required=True)
@@ -90,14 +93,31 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument(
         "--cosy-python", type=Path, default=None, help="python of the CosyVoice Conda env"
     )
+    p.add_argument(
+        "--voxcpm-python", type=Path, default=None, help="python.exe of the VoxCPM2 venv"
+    )
+    p.add_argument(
+        "--voxcpm-mode",
+        default="controllable",
+        choices=["controllable", "ultimate"],
+        help="VoxCPM2 clone mode for its side (ultimate also needs --ref-text-file)",
+    )
     p.add_argument("--cosyvoice-home", default=None, help="CosyVoice repo clone (CosyVoice side)")
     p.add_argument("--cosy-model-dir", default=None, help="CosyVoice model dir (CosyVoice side)")
     p.add_argument("--variant", default="turbo")
     p.add_argument("--language", default="en", help="language code passed to every backend side")
     p.add_argument("--model-size", default="1.7b", choices=["1.7b", "0.6b"])
     args = p.parse_args(argv)
-    if not args.chatterbox_python and not args.qwen_python and not args.cosy_python:
-        p.error("give at least one of --chatterbox-python / --qwen-python / --cosy-python")
+    if (
+        not args.chatterbox_python
+        and not args.qwen_python
+        and not args.cosy_python
+        and not args.voxcpm_python
+    ):
+        p.error(
+            "give at least one of --chatterbox-python / --qwen-python / "
+            "--cosy-python / --voxcpm-python"
+        )
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
     results: list[dict[str, object]] = []
@@ -147,6 +167,24 @@ def main(argv: list[str] | None = None) -> int:
                 script=args.script,
                 ref=args.ref,
                 out_wav=args.out_dir / "cosyvoice.wav",
+                extra=extra,
+            )
+        )
+
+    if args.voxcpm_python:
+        extra = ["--language", args.language, "--voxcpm-mode", args.voxcpm_mode]
+        if args.voxcpm_mode == "ultimate":
+            if not args.ref_text_file:
+                p.error("--voxcpm-mode ultimate needs --ref-text-file")
+            extra += ["--ref-text-file", str(args.ref_text_file)]
+        results.append(
+            _run_backend(
+                label=f"voxcpm:{args.voxcpm_mode}",
+                python=args.voxcpm_python,
+                backend="voxcpm",
+                script=args.script,
+                ref=args.ref,
+                out_wav=args.out_dir / "voxcpm.wav",
                 extra=extra,
             )
         )

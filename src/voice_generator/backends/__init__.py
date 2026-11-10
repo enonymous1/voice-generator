@@ -10,6 +10,7 @@ BACKENDS: dict[str, str] = {
     "chatterbox": "voice_generator.backends.chatterbox_backend:ChatterboxBackend",
     "qwen3": "voice_generator.backends.qwen_backend:Qwen3Backend",
     "cosyvoice": "voice_generator.backends.cosy_backend:CosyBackend",
+    "voxcpm": "voice_generator.backends.voxcpm_backend:VoxCPM2Backend",
 }
 
 
@@ -21,6 +22,7 @@ BACKEND_IMPORTS: dict[str, str] = {
     "chatterbox": "chatterbox",
     "qwen3": "qwen_tts",
     "cosyvoice": "cosyvoice",
+    "voxcpm": "voxcpm",
 }
 
 

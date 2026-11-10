@@ -57,6 +57,11 @@ class SynthConfig:
     cosy_model_dir: str | None = None
     cosy_mode: str = "zero_shot"
     cosy_version: str = "3"
+    voxcpm_model: str = "openbmb/VoxCPM2"
+    voxcpm_mode: str = "controllable"
+    voxcpm_cfg: float = 2.0
+    voxcpm_timesteps: int = 10
+    voxcpm_optimize: bool = True
 
     def backend_kwargs(self) -> dict[str, object]:
         """Translate generic options into this backend's constructor kwargs."""
@@ -74,6 +79,14 @@ class SynthConfig:
             if self.cosy_model_dir is not None:
                 kwargs["model_dir"] = self.cosy_model_dir
             return kwargs
+        if self.backend_name == "voxcpm":
+            return {
+                "model_id": self.voxcpm_model,
+                "mode": self.voxcpm_mode,
+                "cfg_value": self.voxcpm_cfg,
+                "inference_timesteps": self.voxcpm_timesteps,
+                "optimize": self.voxcpm_optimize,
+            }
         return {}
 
 
@@ -105,6 +118,11 @@ def synthesize_script(
     cosy_model_dir: str | None = None,
     cosy_mode: str = "zero_shot",
     cosy_version: str = "3",
+    voxcpm_model: str = "openbmb/VoxCPM2",
+    voxcpm_mode: str = "controllable",
+    voxcpm_cfg: float = 2.0,
+    voxcpm_timesteps: int = 10,
+    voxcpm_optimize: bool = True,
 ) -> RunResult:
     """Render ``text`` through ``backend_name`` to ``out_wav`` + manifest.
 
@@ -135,6 +153,11 @@ def synthesize_script(
             cosy_model_dir=cosy_model_dir,
             cosy_mode=cosy_mode,
             cosy_version=cosy_version,
+            voxcpm_model=voxcpm_model,
+            voxcpm_mode=voxcpm_mode,
+            voxcpm_cfg=voxcpm_cfg,
+            voxcpm_timesteps=voxcpm_timesteps,
+            voxcpm_optimize=voxcpm_optimize,
         )
     )
 

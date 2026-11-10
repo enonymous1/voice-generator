@@ -16,8 +16,8 @@ dependencies = []
 
 [project.optional-dependencies]
 # Each real backend lives in its own extra (and, in practice, its own venv):
-# Chatterbox, CosyVoice and Qwen3-TTS pin conflicting torch / CUDA stacks,
-# so they are never installed into the same environment.
+# Chatterbox, CosyVoice, Qwen3-TTS and VoxCPM2 pin conflicting torch /
+# CUDA stacks, so they are never installed into the same environment.
 # setuptools<81: Chatterbox Turbo's watermarking dep (resemble-perth)
 # imports pkg_resources, which setuptools removed in 81. perth swallows
 # that ImportError and sets PerthImplicitWatermarker = None, so
@@ -27,6 +27,10 @@ dependencies = []
 # Keep the pin until upstream perth drops the pkg_resources import.
 chatterbox = ["chatterbox-tts", "setuptools<81"]
 qwen3 = ["qwen-tts"]
+# VoxCPM2 needs Python 3.10–<3.13, PyTorch >= 2.5, CUDA >= 12 — the venv
+# installs a CUDA torch build first (see SETUP.md), same as the Qwen3
+# venv; this extra only adds the voxcpm package itself.
+voxcpm = ["voxcpm"]
 dev = ["pytest", "ruff"]
 
 [project.scripts]

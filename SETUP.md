@@ -14,8 +14,9 @@ You need, in this order:
 
 - **Git** (to clone, or you already have the extracted project folder).
 - **Python** — the `py` launcher, with 3.11 *and* 3.12 installed. Each
-  backend wants its own version (Chatterbox 3.11, Qwen3-TTS 3.12), so
-  having both now saves a reinstall later. Check with `py --list`.
+  backend wants its own version (Chatterbox 3.11, Qwen3-TTS and
+  VoxCPM2 3.12), so having both now saves a reinstall later. Check
+  with `py --list`.
 - **ffmpeg** on PATH — for converting reference clips. Check with
   `ffmpeg -version`. (Not needed by Stage 1 itself, but Stage 2 will
   require it.)
@@ -66,7 +67,9 @@ mostly decided here, before any model runs.
    — but only of what you actually said. If you read only part of it,
    copy just that part into `refs\me.txt`. Chatterbox does not need a
    transcript, but Qwen3-TTS and CosyVoice do, and the transcript must
-   match the audio word for word, fillers and all.
+   match the audio word for word, fillers and all. VoxCPM2's default
+   controllable mode does not need one either — only its
+   `--voxcpm-mode ultimate` does.
 5. Validate the clip before you burn a render on it:
 
    ```powershell
@@ -75,7 +78,8 @@ mostly decided here, before any model runs.
 
    It flags clips that are too short, stereo, or low sample-rate.
    Target: ~10 seconds for Chatterbox (3–10 s is enough for Qwen3 /
-   CosyVoice), mono, 16 kHz or higher, integer PCM, one speaker only.
+   CosyVoice; 5–10 s for VoxCPM2), mono, 16 kHz or higher, integer
+   PCM, one speaker only.
    A 32-bit float WAV (format tag 3, what some recorders write) fails
    here with `unknown format: 3` — convert it first:
    `ffmpeg -i refs\me.wav -c:a pcm_s16le refs\me_pcm16.wav`.
@@ -176,12 +180,60 @@ It writes one WAV per backend plus `ab_comparison.json` (durations /
 wall times). The comparison is your ears — the JSON is diagnostics,
 not a quality score.
 
-## 5. CosyVoice 3 (optional, advanced)
+## 5. Try VoxCPM2 — the fast one (optional, recommended)
+
+VoxCPM2 is the speed candidate: one-line pip install, no transcript in
+its default mode, vendor RTF ~0.30 on a 4090. There is no published
+RTX 3060 figure, so this step is a benchmark, not a victory lap — run
+it on the same script and clip as the other backends and compare wall
+times with the A/B tool.
+
+```powershell
+py -3.12 -m venv .venv-voxcpm
+.venv-voxcpm\Scripts\activate
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+pip install -e ".[voxcpm]"
+python -c "import torch; print(torch.cuda.is_available())"
+voice-gen synth --backend voxcpm --script script.txt --ref refs\me_10s.wav --out output\ep1_voxcpm.wav
+```
+
+The `torch.cuda.is_available()` check must print `True` — same
+CPU-only-torch trap as step 3, same fix (the cu121 install above).
+
+To compare all four sides at once (stdlib-only, run it with any
+Python):
+
+```powershell
+python tools\ab_compare.py --script script.txt --ref refs\me_10s.wav --ref-text-file refs\me_10s.txt --chatterbox-python .venv-chatterbox\Scripts\python.exe --qwen-python .venv-qwen3\Scripts\python.exe --voxcpm-python .venv-voxcpm\Scripts\python.exe --out-dir output\ab1
+```
+
+It writes one WAV per backend plus `ab_comparison.json` (durations /
+wall times). Listen first — the JSON is diagnostics, not a quality
+score. If VoxCPM2 is both fastest *and* sounds like you, it becomes
+the default fast path; if it is fast but the clone is worse, keep
+Chatterbox/Qwen3 as the quality path.
+
+**If the first VoxCPM2 render fails on a Triton / torch.compile
+error:** the backend retries once unoptimized on its own and says so on
+stderr. If it still fails, re-run with `--voxcpm-no-optimize` — that
+skips `torch.compile` outright, at some speed cost. If it fails with
+`Could not load libtorchcodec`, install FFmpeg or run
+`pip install soundfile` in the VoxCPM2 venv (torchaudio ≥ 2.9 defaults
+to torchcodec for loading the reference clip).
+
+For the transcript-paired mode (maximum similarity), add the transcript
+and the mode flag:
+
+```powershell
+voice-gen synth --backend voxcpm --script script.txt --ref refs\me_10s.wav --ref-text-file refs\me_10s.txt --voxcpm-mode ultimate --out output\ep1_voxcpm_ult.wav
+```
+
+## 6. CosyVoice 3 (optional, advanced)
 
 Only worth it for multilingual work or Chinese dialects, after the
 first two engines sound good. It is not a pip package: recursive git
 clone + Conda Python 3.10 env + `requirements.txt` + sox, and it is the
-fiddliest Windows install of the three. Full instructions are in the
+fiddliest Windows install of the four. Full instructions are in the
 README under "Install: CosyVoice 3 (advanced)". If it fights you, that
 is expected — Chatterbox and Qwen3 already cover most use cases.
 

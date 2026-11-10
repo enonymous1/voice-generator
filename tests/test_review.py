@@ -70,6 +70,14 @@ def test_synth_config_backend_kwargs():
         "mode": "zero_shot",
         "cosyvoice_home": "/c/CosyVoice",
     }
+    voxcpm = SynthConfig(text="x", reference_wav=None, out_wav=Path("o.wav"), backend_name="voxcpm")
+    assert voxcpm.backend_kwargs() == {
+        "model_id": "openbmb/VoxCPM2",
+        "mode": "controllable",
+        "cfg_value": 2.0,
+        "inference_timesteps": 10,
+        "optimize": True,
+    }
 
 
 def test_qwen_rejects_bad_dtype_up_front():
