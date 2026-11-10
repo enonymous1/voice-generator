@@ -5,6 +5,8 @@ All notable changes to voice-generator, following
 
 ## [Unreleased]
 
+## [0.3.2] — 2026-11-09 (first real GPU runs)
+
 ### Fixed
 - Chatterbox rendered audio and then failed with `Error: unknown format:
   3` (seen 2026-11-09 on the first real GPU render, after the Perth

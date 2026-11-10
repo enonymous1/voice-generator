@@ -366,7 +366,7 @@ which backends are importable in this env, ffmpeg on PATH.
 | Synthesis stalls after model load, no progress | CPU-only torch (see above) — not a download, not the reference clip, not SoX. Check `torch.cuda.is_available()` in that venv. |
 | Chatterbox: `TypeError: 'NoneType' object is not callable` at `PerthImplicitWatermarker` | Turbo's watermarking dep (`resemble-perth`) imports `pkg_resources`, removed in setuptools 81+; perth swallows its own import error, so it only surfaces at model load, after the download. In the Chatterbox venv: `pip install "setuptools<81"` and retry. New installs get the pin via the `chatterbox` extra. Workaround without the fix: `--variant original` never touches Perth. |
 | `OutOfMemoryError` / CUDA OOM on 12 GB | Something else holds VRAM → close it; for Qwen3 try `--model-size 0.6b`; render stages sequentially, never in parallel. |
-| `Error: unknown format: 3` | A 32-bit float WAV, which stdlib `wave` cannot read: either the reference clip is float (convert it: `ffmpeg -i refs\me.wav -c:a pcm_s16le refs\me_pcm16.wav`) or, before this fix, the Chatterbox backend wrote a float WAV itself — fixed in v0.3.1 by writing PCM-16 via the shared writer. |
+| `Error: unknown format: 3` | A 32-bit float WAV, which stdlib `wave` cannot read: either the reference clip is float (convert it: `ffmpeg -i refs\me.wav -c:a pcm_s16le refs\me_pcm16.wav`) or, before this fix, the Chatterbox backend wrote a float WAV itself — fixed in v0.3.2 by writing PCM-16 via the shared writer. |
 | Clone sounds like a different person | Noisy/multi-speaker/short reference, or transcript doesn't match audio word-for-word (Qwen3/CosyVoice) → re-record clean, fix the transcript. |
 | Clone sounds right but "flat" | Reference delivery was flat, or Chatterbox `--exaggeration` too low → raise to 0.6–0.8; re-record with more expression. |
 | Robotic gaps between sentences | Chunk boundaries → raise `--max-chars` a bit, or accept it (Stage 2 hides a lot). |
@@ -451,13 +451,14 @@ voice-generator/
 
 **Known limitations / honest status**
 
-- **v0.3.1.** Verified on a GPU-less Linux box: 27/27 tests, ruff
-  clean, wheel builds as 0.3.1 from the single version source.
-- **Not yet verified:** a real render on the RTX 3060. The backend APIs
-  were verified against the upstream READMEs/examples on 2026-10-22,
-  but the first GPU run is yours — if a backend breaks there, the error
-  messages and the troubleshooting table above are the first stop, and
-  the chunk/manifest plumbing around it is already proven.
+- **v0.3.2.** Verified on a GPU-less Linux box: 33/33 tests, ruff
+  clean, wheel builds as 0.3.2 from the single version source. Real
+  renders confirmed on the RTX 3060 (Chatterbox + Qwen3, 2026-11-09);
+  the first-render bugs they surfaced (Perth/setuptools, float WAV,
+  CPU-only torch) are fixed in this release.
+- **Not yet verified:** CosyVoice 3 on Windows (trial paused — the
+  Conda/pynini install friction is not worth it for English-only use),
+  and any Stage 2 talking-head render.
 - Japanese in CosyVoice cross-lingual mode needs katakana-converted text
   (upstream note).
 - Chatterbox outputs carry Resemble's imperceptible PerTh watermark —
@@ -559,8 +560,11 @@ not.
    A/B compare tool.
 3. **v0.3** — CosyVoice 3 backend (local repo clone in its Conda env),
    A/B tool extended to all three backends.
-4. **v0.3.1 (this)** — staff review: manifest provenance fix, CLI error
+4. **v0.3.1** — staff review: manifest provenance fix, CLI error
    handling, `SynthConfig`, device auto-detect, LICENSE/CHANGELOG/CI,
    rewritten README.
-5. v0.4 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
+5. **v0.3.2 (this)** — first real GPU runs: Perth/setuptools pin,
+   PCM-16 writer, CPU-fallback warning, SoX install docs, Qwen diag
+   tool.
+6. v0.4 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
    MuseTalk): WAV + manifest in, lip-synced MP4 out.

@@ -267,7 +267,7 @@ same in both: the synth path trusted the venv instead of verifying it.
   VS Code restart needed for its terminals to inherit a PATH change.
 - **`.gitignore` gaps**: `refs/` and `.venv-*/` were not ignored.
   Both added.
-- **Not changed**: no version bump — these ride with the 0.3.1 push
-  (the Unreleased section was already holding the Perth and PCM
-  fixes); no backend call shapes touched; CosyVoice trial paused by
-  the user (Conda/pynini friction) and not re-litigated here.
+- **Version bump**: these ship as **v0.3.2** (the Unreleased section
+  was already holding the Perth and PCM fixes); no backend call shapes
+  touched; CosyVoice trial paused by the user (Conda/pynini friction)
+  and not re-litigated here.
