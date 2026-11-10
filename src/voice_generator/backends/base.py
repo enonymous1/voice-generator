@@ -12,6 +12,7 @@ break the torch-free core CLI and the GPU-less test suite.
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -75,6 +76,12 @@ def resolve_device(preferred: str) -> str:
     load. An explicit ``"cuda"`` / ``"cuda:0"`` / ``"cpu"`` is honoured
     verbatim. torch itself is imported lazily and its absence (core env,
     tests) resolves to ``"cpu"``.
+
+    The fallback is loud on purpose: on 2026-11-09 a venv whose torch
+    was a CPU-only build made a Qwen3 render sit with no progress for
+    12+ minutes after model load, looking hung, because nothing said
+    the GPU was not in use. When torch is present but CUDA is not, a
+    stderr warning names the cause and the fix.
     """
     if preferred != "auto":
         return preferred
@@ -83,9 +90,24 @@ def resolve_device(preferred: str) -> str:
     except ImportError:
         return "cpu"
     try:
-        return "cuda" if torch.cuda.is_available() else "cpu"
+        if torch.cuda.is_available():
+            return "cuda"
     except Exception:  # torch present but broken/uninitialised: fail soft to CPU
+        print(
+            "Warning: torch is installed but CUDA could not be initialised — "
+            "synthesis will run on CPU and be very slow on large models.",
+            file=sys.stderr,
+        )
         return "cpu"
+    print(
+        "Warning: torch is installed but CUDA is not available — synthesis "
+        "will run on CPU. Large models (Qwen3 1.7B) can take 10+ minutes per "
+        "step on CPU. If this machine has an Nvidia GPU, install a CUDA "
+        "torch build: pip install torch torchvision torchaudio "
+        "--index-url https://download.pytorch.org/whl/cu121",
+        file=sys.stderr,
+    )
+    return "cpu"
 
 
 class BaseBackend:

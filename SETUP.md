@@ -93,6 +93,21 @@ voice-gen doctor
 ```
 
 `doctor` should report torch with CUDA available and your GPU's VRAM.
+Double-check with the explicit test — it must print `True`:
+
+```powershell
+python -c "import torch; print(torch.cuda.is_available())"
+```
+
+If it prints `False`, your torch is a CPU-only build and every render
+will run on CPU (Chatterbox survives that; Qwen3 looks hung for 10+
+minutes — see "If something goes wrong" below). Fix it in this venv
+before rendering anything:
+
+```powershell
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+```
+
 Then one short test line — judge this before rendering anything long:
 
 > If the first render fails with `TypeError: 'NoneType' object is not
@@ -141,8 +156,14 @@ by ear. Qwen3 needs the transcript from step 2.
 py -3.12 -m venv .venv-qwen3
 .venv-qwen3\Scripts\activate
 pip install -e ".[qwen3]"
+python -c "import torch; print(torch.cuda.is_available())"
 voice-gen synth --backend qwen3 --script script.txt --ref refs\me.wav --ref-text-file refs\me.txt --out output\ep1_qwen.wav
 ```
+
+The `torch.cuda.is_available()` check must print `True` — same
+CPU-only-torch trap as step 3, same fix (`pip install torch
+torchvision torchaudio --index-url
+https://download.pytorch.org/whl/cu121` in this venv).
 
 Or run both sides at once with the A/B tool (stdlib-only, run it with
 any Python):
@@ -164,13 +185,27 @@ fiddliest Windows install of the three. Full instructions are in the
 README under "Install: CosyVoice 3 (advanced)". If it fights you, that
 is expected — Chatterbox and Qwen3 already cover most use cases.
 
+SoX note (verified 2026-11-09): `choco install sox` no longer works —
+the package is gone from the Chocolatey community feed. Download
+`sox-14.4.2-win32.zip` from SourceForge instead, unzip it, add the
+folder to your user PATH, then close and reopen the terminal (or
+restart VS Code — its terminals inherit the environment from launch)
+and verify with `sox --version`.
+
 ## If something goes wrong
 
 - `voice-gen doctor` first — it tells you which backend is actually
   installed in the venv you are in. Most "backend not installed" errors
   mean you are in the wrong venv: each backend has its own.
-- First synthesis "hangs" for minutes: it is downloading weights.
-  Later runs are offline.
+- First synthesis "hangs" for minutes: if progress bars are moving,
+  it is downloading weights. Later runs are offline. But if it stalls
+  *after* model load with no progress at all (seen 2026-11-09: Qwen3
+  sat 12+ minutes on the line after `pad_token_id`), that is not a
+  download — it is a CPU-only torch build grinding on CPU. Kill it,
+  run `python -c "import torch; print(torch.cuda.is_available())"` in
+  that venv (must be `True`), and install a CUDA torch build with
+  `pip install torch torchvision torchaudio --index-url
+  https://download.pytorch.org/whl/cu121` if it is not.
 - CUDA out of memory on 12 GB: close whatever else holds VRAM, and for
   Qwen3 try `--model-size 0.6b`.
 - The README's troubleshooting table covers the rest

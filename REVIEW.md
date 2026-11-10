@@ -240,3 +240,34 @@ python -m build              # wheel ss_voice_generator-0.3.1, Version: 0.3.1
 All verification on a GPU-less Linux box with fake engine modules;
 real-backend renders remain the manual gate on the RTX 3060, per the
 README's Deployment section.
+
+## 8. Follow-up, 2026-11-09 (first real GPU runs)
+
+Two real renders on the RTX 3060, and the review's blind spot was the
+same in both: the synth path trusted the venv instead of verifying it.
+
+- **Perth / setuptools pin** and the **Chatterbox float-WAV fix** are
+  in the Changelog's Unreleased section (commits `b67393c`,
+  `8d5f1e7`); both were found by running, not by reading.
+- **CPU-only torch** (the expensive one): Qwen3 sat with no progress
+  for 12+ minutes after model load, twice, then again with
+  `--x-vector-only` and a 10-second clip. The clip length and the
+  missing SoX were both chased first and both ruled out. A timestamped
+  upstream repro (`tools/diag_qwen_prompt.py`, added here) showed
+  `cuda available: False` — the venv's torch was a CPU-only build, so
+  everything had been running on CPU all along. Fix: `resolve_device`
+  now warns on stderr when torch is present but CUDA is not, with the
+  CUDA-torch install command; two tests pin it (fake torch module,
+  warning present / absent). Docs now carry the explicit
+  `torch.cuda.is_available()` check after each backend venv install,
+  and the "hangs for minutes" rows distinguish a download from this
+  stall.
+- **SoX**: `choco install sox` no longer works (package gone from the
+  community feed); docs now point at the SourceForge zip, and at the
+  VS Code restart needed for its terminals to inherit a PATH change.
+- **`.gitignore` gaps**: `refs/` and `.venv-*/` were not ignored.
+  Both added.
+- **Not changed**: no version bump — these ride with the 0.3.1 push
+  (the Unreleased section was already holding the Perth and PCM
+  fixes); no backend call shapes touched; CosyVoice trial paused by
+  the user (Conda/pynini friction) and not re-litigated here.

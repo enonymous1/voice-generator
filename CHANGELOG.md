@@ -24,8 +24,31 @@ All notable changes to voice-generator, following
   `chatterbox` extra now pins `setuptools<81`; existing venvs need
   `pip install "setuptools<81"` once. Documented in SETUP.md and the
   README troubleshooting table.
+- A Qwen3 render sat with no progress for 12+ minutes after model load
+  (seen 2026-11-09, twice, then again with `--x-vector-only` and a
+  10-second clip): the venv's torch was a CPU-only build, so prompt
+  creation ground on CPU — and nothing said the GPU was not in use.
+  `resolve_device("auto")` now warns on stderr when torch is present
+  but CUDA is not, naming the cause and the CUDA-torch install command.
+  The README/SETUP.md "hangs for minutes" rows now distinguish a
+  download (progress bars moving) from this stall (no progress after
+  model load). `voice-gen doctor` already reported CUDA status; the
+  synth path was the silent one.
+- `.gitignore` did not cover `refs/` (voice clips are personal data)
+  or per-backend venvs (`.venv-*/`) — only the single `.venv/` was
+  ignored. Both added, so a reference clip or a second venv can never
+  be committed by accident.
+- SoX install docs were unsourced: `choco install sox` no longer works
+  (the package is gone from the Chocolatey community feed, verified
+  2026-11-09). README and SETUP.md now point at the SourceForge
+  `sox-14.4.2-win32.zip`, the PATH step, and the VS Code restart
+  needed for its terminals to see a PATH change.
 
 ### Added
+- `tools/diag_qwen_prompt.py` — minimal upstream repro (direct
+  qwen-tts calls with timestamps, no wrapper) that isolated the
+  2026-11-09 stall to a CPU-only torch build. Run it in the Qwen3
+  venv from the project root.
 - `SETUP.md` — ordered Windows quickstart (prove the pipeline, record
   the reference, first Chatterbox render, Qwen3 A/B) for first-time
   voice testing, with the README kept as the full reference.

@@ -94,7 +94,12 @@ Software you need before installing:
   accident.
 - **Conda / Miniconda** — only for the CosyVoice backend.
 - **sox** — only for CosyVoice (upstream requirement; on Windows install
-  the sox binary and put it on PATH).
+  the sox binary and put it on PATH). Get it as `sox-14.4.2-win32.zip`
+  from SourceForge — `choco install sox` no longer works, the package
+  is gone from the Chocolatey community feed (verified 2026-11-09).
+  After adding it to PATH, restart the terminal (or VS Code, whose
+  terminals inherit its launch-time environment) and verify with
+  `sox --version`.
 - **ffmpeg** on PATH — not needed by Stage 1 itself, but Stage 2 will
   require it; `voice-gen doctor` checks for it now so you're ready.
 
@@ -355,9 +360,10 @@ which backends are importable in this env, ffmpeg on PATH.
 
 | Symptom | Likely cause → fix |
 |---|---|
-| `torch … CUDA not available` in `doctor` | CPU-only torch wheel, or driver too old → reinstall the backend extra in a *fresh* venv; update the Nvidia driver. |
+| `torch … CUDA not available` in `doctor` | CPU-only torch wheel, or driver too old → in that venv: `pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121`, then verify with `python -c "import torch; print(torch.cuda.is_available())"` (must be `True`). Update the Nvidia driver if CUDA torch still reports unavailable. |
 | Backend "not installed in this environment" | You're in the wrong venv → activate that backend's env (each backend has its own; this is by design). |
-| First synthesis hangs for minutes | It's downloading model weights from Hugging Face (one-time, several GB). Later runs are offline. |
+| First synthesis hangs for minutes | If progress bars are moving, it's downloading model weights from Hugging Face (one-time, several GB). Later runs are offline. If it stalls *after* model load with no progress at all, it's a CPU-only torch build grinding on CPU (seen 2026-11-09: Qwen3 sat 12+ minutes past `pad_token_id`) → kill it and install a CUDA torch build as in the row above. The synth path also warns on stderr when it falls back to CPU. |
+| Synthesis stalls after model load, no progress | CPU-only torch (see above) — not a download, not the reference clip, not SoX. Check `torch.cuda.is_available()` in that venv. |
 | Chatterbox: `TypeError: 'NoneType' object is not callable` at `PerthImplicitWatermarker` | Turbo's watermarking dep (`resemble-perth`) imports `pkg_resources`, removed in setuptools 81+; perth swallows its own import error, so it only surfaces at model load, after the download. In the Chatterbox venv: `pip install "setuptools<81"` and retry. New installs get the pin via the `chatterbox` extra. Workaround without the fix: `--variant original` never touches Perth. |
 | `OutOfMemoryError` / CUDA OOM on 12 GB | Something else holds VRAM → close it; for Qwen3 try `--model-size 0.6b`; render stages sequentially, never in parallel. |
 | `Error: unknown format: 3` | A 32-bit float WAV, which stdlib `wave` cannot read: either the reference clip is float (convert it: `ffmpeg -i refs\me.wav -c:a pcm_s16le refs\me_pcm16.wav`) or, before this fix, the Chatterbox backend wrote a float WAV itself — fixed in v0.3.1 by writing PCM-16 via the shared writer. |
@@ -368,7 +374,7 @@ which backends are importable in this env, ffmpeg on PATH.
 | Qwen3: `flash_attention_2` import error | You opted in without it installed → drop `--attn` (default `sdpa`). |
 | CosyVoice: `No module named cosyvoice` | Not in the Conda env, or `--cosyvoice-home` wrong → the backend's error message prints the full setup recipe. |
 | CosyVoice: `No module named matcha` | Submodules missing → `git submodule update --init --recursive` in the clone. |
-| CosyVoice: sox errors / silent failures | sox not installed or not on PATH → install sox, restart the terminal, verify with `sox --version`. |
+| CosyVoice: sox errors / silent failures | sox not installed or not on PATH → install sox from the SourceForge zip (`choco install sox` no longer works), add it to PATH, restart the terminal (or VS Code), verify with `sox --version`. |
 | Garbled / wrong-language output | `--language` mismatch, or Chatterbox `turbo`/`original` (English-only) used for non-English → use `multilingual` or the right `--language`. |
 | WAV plays but is silent / a tone | You rendered with `--backend mock`. It writes a tone *on purpose* — switch to a real backend. |
 

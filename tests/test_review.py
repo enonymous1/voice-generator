@@ -6,6 +6,8 @@ one of them fails loudly here instead of silently on a user's machine.
 
 import json
 import struct
+import sys
+import types
 import wave
 from pathlib import Path
 
@@ -80,6 +82,24 @@ def test_resolve_device_auto_without_torch_is_cpu():
     # This venv has no torch installed; auto must not crash or claim CUDA.
     assert resolve_device("auto") == "cpu"
     assert resolve_device("cuda:0") == "cuda:0"
+
+
+def test_resolve_device_auto_warns_when_torch_has_no_cuda(monkeypatch, capsys):
+    # 2026-11-09: a venv whose torch was a CPU-only build made a Qwen3
+    # render sit with no progress for 12+ minutes after model load,
+    # looking hung, because nothing said the GPU was not in use. The
+    # fallback must be loud.
+    fake_torch = types.SimpleNamespace(cuda=types.SimpleNamespace(is_available=lambda: False))
+    monkeypatch.setitem(sys.modules, "torch", fake_torch)
+    assert resolve_device("auto") == "cpu"
+    assert "CUDA is not available" in capsys.readouterr().err
+
+
+def test_resolve_device_auto_silent_when_cuda_available(monkeypatch, capsys):
+    fake_torch = types.SimpleNamespace(cuda=types.SimpleNamespace(is_available=lambda: True))
+    monkeypatch.setitem(sys.modules, "torch", fake_torch)
+    assert resolve_device("auto") == "cuda"
+    assert capsys.readouterr().err == ""
 
 
 def test_cli_synth_mock_end_to_end(tmp_path: Path, capsys):
