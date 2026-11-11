@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Research — fast, open voice-cloning models — voice-generator</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav>
+  <a class="brand" href="index.html">voice-generator</a>
+  <a href="listen.html">Listen</a>
+  <a href="research.html">Research</a>
+  <a href="https://github.com/enonymous1/voice-generator">GitHub</a>
+</nav>
+<main>
+  <h1>Fast, open zero-shot voice-cloning TTS</h1>
+  <p class="muted">Researched 2026-11-10. Hardware in scope: Windows, RTX 3060
+  12 GB VRAM, 64 GB RAM; English text scripts → WAV, offline; speed
+  matters more than multilingual coverage. Baseline already owned (not
+  re-reported as discoveries): Chatterbox Turbo (MIT), Qwen3-TTS 1.7B
+  Base (Apache-2.0), CosyVoice 3 (Apache-2.0, hardest Windows install).
+  The full per-candidate notes live in the repo at
+  <a href="https://github.com/enonymous1/voice-generator/blob/main/docs/research/fast-open-voice-cloning-tts-2026-11-10.md">docs/research/fast-open-voice-cloning-tts-2026-11-10.md</a>.</p>
+
+  <div class="callout">
+    <strong>Recommendation: add VoxCPM2 as the fourth backend</strong> — the
+    only candidate that is simultaneously (a) genuinely permissive for code
+    <em>and</em> weights, (b) fast on a vendor-measured basis, (c) a
+    one-line PyPI install, and (d) fits a 12 GB card at ~8 GB VRAM.
+    Confidence: moderate-high on licence/install/speed-claim; moderate on
+    real-world RTX 3060 speed and English clone quality, which still need
+    a local A/B against Chatterbox/Qwen3-TTS. It shipped in v0.4.0.
+  </div>
+
+  <h2>How to read speed figures</h2>
+  <p>RTF = compute seconds ÷ audio seconds (RTF 0.3 ≈ 3.3× real-time;
+  RTF 2.1 = slower than real-time). Some sources invert this as RTFx =
+  audio ÷ compute (RTFx 3× = RTF 0.33). Almost all GPU figures are vendor
+  claims on an RTX 4090/H100, <strong>not</strong> on an RTX 3060 — no
+  reliable RTX 3060 figure was found for any candidate. Do not extrapolate
+  4090 → 3060 linearly.</p>
+
+  <h2>Top 3 for this project</h2>
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Rank</th><th>Candidate</th><th>Why it ranks here</th><th>Main risk</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>1</td><td><strong>VoxCPM2</strong></td><td>Only one that clears all four bars at once: Apache-2.0, RTF 0.30/0.13 (4090), <code>pip install</code>, ~8 GB VRAM, no-transcript cloning, 48 kHz, streaming</td><td>Windows Triton/torch.compile; 3060 RTF unproven — benchmark before committing</td></tr>
+      <tr><td>2</td><td><strong>GPT-SoVITS v2ProPlus</strong></td><td>Fastest published RTF (0.014–0.028), MIT, Windows one-click package, 4060 Ti figure is closest to a 3060</td><td>WebUI/toolkit integration, transcript-required prompt, version maze, base-model licence notes</td></tr>
+      <tr><td>3</td><td><strong>Pocket TTS</strong></td><td>Fastest on CPU (2.9–3.0× RTFx Windows CPU, ~200 ms first chunk), lightest (100M), <code>pip install</code>, MIT/CC-BY-4.0</td><td>HF accept-terms gate for cloning weights; quality ceiling; ~1,000-char limit reported</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><strong>Next in line:</strong> OpenVoice V2 (clean MIT, fast on GPU,
+  fragile Windows install) and Zonos v0.1 (Apache, ~2× RT, Linux-only
+  officially) — either could displace #3 if Pocket TTS’s gate is
+  unacceptable, but neither displaces VoxCPM2.</p>
+  <p><strong>Speed dark horse, not ranked:</strong> LuxTTS claims 150×
+  real-time in 1 GB VRAM, but that claim is vendor-only, the project is a
+  single-author repo, its ZipVoice lineage has an unresolved
+  weights-licence problem, and — decisively — its install is blocked on
+  Windows (no Windows <code>piper-phonemize</code> wheel). Experiment
+  only.</p>
+
+  <h2>1. VoxCPM2 (OpenBMB) — added in v0.4.0</h2>
+  <ul>
+    <li><strong>Licence:</strong> Apache-2.0 for weights and code, “free for
+      commercial use” — verified live on PyPI, 2026-11-10.
+      <a href="https://pypi.org/project/voxcpm/">pypi.org/project/voxcpm</a></li>
+    <li><strong>Speed:</strong> vendor table (RTX 4090, concurrency 1,
+      <code>inference_timesteps=10</code>, <code>torch.compile</code> on):
+      RTF ~0.30 standard, ~0.13 with Nano-vLLM; VRAM ~8 GB. That is ~3.3×
+      real-time standard, ~7.7× with Nano-vLLM — on a 4090. No RTX 3060
+      figure found.</li>
+    <li><strong>Windows install:</strong> <code>pip install voxcpm</code>;
+      Python ≥3.10 (&lt;3.13), PyTorch ≥2.5.0, CUDA ≥12.0. Known landmines:
+      Triton-on-Windows (install <code>triton-windows</code> or pass
+      <code>optimize=False</code> to skip <code>torch.compile</code>);
+      <code>Could not load libtorchcodec</code> with reference audio
+      (torchaudio ≥2.9 defaults to torchcodec — install system FFmpeg or
+      force the soundfile backend).</li>
+    <li><strong>Cloning:</strong> controllable cloning from a short
+      reference clip, no transcript; “Ultimate Cloning” (clip + exact
+      transcript) for maximum similarity; 30 languages, 48 kHz out,
+      accepts 16 kHz reference.</li>
+  </ul>
+
+  <h2>2. GPT-SoVITS v2ProPlus — fastest measured, messiest to integrate</h2>
+  <ul>
+    <li><strong>Licence:</strong> MIT for the framework code; secondary
+      sources warn base-model files and some dependencies carry their own
+      licence notes — check the specific checkpoint.</li>
+    <li><strong>Speed:</strong> fastest vendor-published RTF in this survey,
+      from the project README: v2ProPlus RTF <strong>0.028 on RTX 4060 Ti,
+      0.014 on RTX 4090</strong> (1,400 words ≈ 4 min audio in 3.36 s),
+      0.526 on M4 CPU. A separate guide measured v4 inference RTF ~0.5 on
+      RTX 5080 — version matters enormously.</li>
+    <li><strong>Windows install:</strong> best Windows story of the heavy
+      models: integrated package, double-click <code>go-webui.bat</code>;
+      or Conda + <code>install.ps1</code>. No PyPI package — it is a
+      WebUI/API toolkit, not a library, so integrating it into a CLI means
+      driving its API/WebUI or vendoring its inference code.</li>
+    <li><strong>Cloning:</strong> zero-shot from 5 s of audio; its real
+      strength is few-shot fine-tuning (~1 min of data trains a voice
+      model) — not this project’s workflow (3–10 s clip, no training). For
+      pure zero-shot, the prompt needs audio <em>and</em> its transcript.</li>
+  </ul>
+
+  <h2>3. Pocket TTS (Kyutai) — fastest on CPU, lightest, gated cloning</h2>
+  <ul>
+    <li><strong>Licence:</strong> code MIT; weights CC-BY-4.0 (permissive,
+      commercial use allowed with attribution). Two preset voices
+      (<code>jean</code>/<code>cosette</code>) are CC-BY-NC-4.0 — irrelevant
+      if you only use cloning.</li>
+    <li><strong>Speed:</strong> ~6× real-time on a MacBook Air M4 using only
+      2 CPU cores, ~200 ms first-chunk latency, 100M params, 24 kHz.
+      Independent tts-bench (Windows Ryzen 9 9950X3D CPU): TTFA warm 97–150 ms,
+      RTFx warm 2.9–3.0×. GPU explicitly <em>not recommended</em> by Kyutai.</li>
+    <li><strong>Windows install:</strong> <code>pip install pocket-tts</code>
+      (PyPI 2.0.0, <code>py3-none-any</code> wheel). No espeak/pynini
+      blocker found.</li>
+    <li><strong>Cloning:</strong> sample-based zero-shot, no fine-tuning;
+      5 s is enough per Kyutai, ~20 s per community write-ups.
+      <strong>Gated:</strong> cloning weights require accepting terms on
+      Hugging Face and logging in; without access it silently falls back
+      to a no-cloning build. That gate breaks a fully-offline, no-account
+      CLI flow on first run unless weights are pre-downloaded.</li>
+  </ul>
+
+  <h2>At-a-glance table</h2>
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Candidate</th><th>Licence (code / weights)</th><th>Size / VRAM</th><th>Speed (source, hardware)</th><th>Clone ref</th><th>Windows install</th><th>Verdict</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>VoxCPM2</strong></td><td>Apache-2.0 / Apache-2.0</td><td>2B / ~8 GB</td><td>RTF ~0.30 (4090, vendor); ~0.13 Nano-vLLM</td><td>3–10 s, no transcript (controllable)</td><td><code>pip install voxcpm</code>, Py 3.10–&lt;3.13</td><td><strong>#1 — add it</strong></td></tr>
+      <tr><td><strong>GPT-SoVITS v2ProPlus</strong></td><td>MIT / MIT*</td><td>~150M–1B class, ~3 GB infer.</td><td>RTF 0.028 (4060 Ti), 0.014 (4090), vendor README</td><td>5 s zero-shot; 1 min for fine-tune</td><td>Integrated .7z + <code>go-webui.bat</code>, or Conda + install.ps1</td><td><strong>#2 — fastest, messiest</strong></td></tr>
+      <tr><td><strong>Pocket TTS</strong></td><td>MIT / CC-BY-4.0</td><td>100M / CPU, ~1 GB if GPU</td><td>~6× RT on M4 CPU (2 cores), ~200 ms first chunk</td><td>~5 s (community: ~20 s)</td><td><code>pip install pocket-tts</code> (py3-none-any wheel)</td><td><strong>#3 — CPU insurance</strong></td></tr>
+      <tr><td>LuxTTS</td><td>Apache-2.0 claimed / <em>contested</em></td><td>~123M ZipVoice-based / 1 GB claimed</td><td>150× RT claimed (vendor only)</td><td>≥3 s</td><td><strong>Blocked on Windows</strong> (piper-phonemize wheel)</td><td>Experiment only</td></tr>
+      <tr><td>OpenVoice V2</td><td>MIT / MIT</td><td>~100M / 6 GB+ GPU</td><td>5.91× RTFx on MPS, 2.49× CPU (tts-bench, independent)</td><td>1–5 s claimed; other sources say 30 s</td><td>git + MeloTTS, Py 3.9, PyAV pain</td><td>Clean licence, fragile install</td></tr>
+      <tr><td>Zonos v0.1</td><td>Apache-2.0 / Apache-2.0</td><td>1.6B / 6 GB+</td><td>~2× RT (4090, vendor); TTFA 200–300 ms</td><td>5–30 s (README: 10–30 s)</td><td>Linux/macOS official; Windows via fork</td><td>Good, but not native Windows</td></tr>
+      <tr><td>ZONOS2</td><td>Apache-2.0</td><td>8B total / 900M active</td><td>~4× faster than v0.1 (vendor); tts-bench warm RTFx ~2.0–2.1×</td><td>short clip, ECAPA embedding</td><td>Mini-SGLang server only; sm_80+ GPU kernels</td><td>Too heavy / unproven on 3060</td></tr>
+      <tr><td>Orpheus-TTS 3B</td><td>Apache-2.0 card / Llama-3.2 base*</td><td>3B / ~8 GB (GGUF Q8 ~4 GB)</td><td>~91 tok/s ≈ RTF ~1.0; streaming ~200 ms (vendor)</td><td>5–10 s</td><td><code>orpheus-speech</code> pip (vLLM/CUDA); GGUF+llama.cpp path</td><td>Slow, cloning mediocre</td></tr>
+      <tr><td>Dia 1.6B</td><td>Apache-2.0</td><td>1.6B / ~4.4 GB bf16</td><td>RTF ~2.1 on 4090 (slower than RT); other bench RTF ~4.4 on M5</td><td>5–10 s + transcript</td><td>pip / Transformers; GPU-only</td><td>Dialogue-only, too slow</td></tr>
+      <tr><td>Dia2 1B/2B</td><td>Apache-2.0</td><td>1–2B / ~6 GB</td><td>Streaming, ~real-time on CUDA (community)</td><td>5–10 s prefix audio</td><td>CUDA strongly recommended</td><td>Dialogue-only, 2-min cap</td></tr>
+      <tr><td>Sesame CSM-1B</td><td>Apache-2.0</td><td>1B / ~5 GiB observed, 7.15 GB ckpt</td><td>“Too slow for real-time” even on H200 (independent); no vendor RTF</td><td>10–15 s + <strong>transcript required</strong></td><td>pip + Transformers ≥4.52.1, gated HF + Llama access</td><td>Slow, conversational, not narration</td></tr>
+      <tr><td>Step-Audio-EditX</td><td>Apache-2.0</td><td>3B / 12 GB optimal, 16 GB safer; AWQ ~8–10 GB</td><td><strong>No reliable RTF found</strong></td><td>10–30 s + transcript</td><td>git + requirements, Conda, Linux-tested only</td><td>Quality leader, does not fit 12 GB comfortably</td></tr>
+      <tr><td>FireRedTTS-2</td><td>Apache-2.0* / academic-research disclaimer</td><td>~1.5B+ / 9 GB bf16, 20.9 GB download</td><td>First packet 140 ms on L20 (vendor)</td><td>3–10 s</td><td>Conda, PyTorch 2.7.1/cu126</td><td>Dialogue, not narration; research disclaimer</td></tr>
+      <tr><td>FireRedTTS3</td><td>Apache-2.0 / academic-research</td><td>2.1B / 8–14 GB VRAM, 20 GB weights</td><td>No RTF found; length-unstable in one A/B</td><td>transcript required (Base)</td><td>flash-attn mandatory (Windows-hostile)</td><td>Too big/heavy, unstable length</td></tr>
+      <tr><td>MegaTTS 3</td><td>Apache-2.0</td><td>0.45B backbone, ~1.31B total</td><td>~30 s for 10 steps (vendor, HW unnamed) — slow</td><td><strong>Cannot clone new speaker locally</strong> (WaveVAE encoder withheld)</td><td>git clone + Gradio</td><td><strong>Disqualified</strong></td></tr>
+      <tr><td>GLM-TTS</td><td>Apache-2.0 / MIT</td><td>~1.5B / 8 GB+</td><td>400 ms first frame (vendor site); 200%+ RT on 3080 Ti (community)</td><td>3–10 s</td><td><strong>pynini → Conda-only on Windows</strong></td><td>Good licence, CosyVoice-style Windows pain</td></tr>
+      <tr><td>MOSS-TTS Local 1.7B / Realtime</td><td>Apache-2.0</td><td>1.7B / ~5 GB</td><td>Realtime: TTFB ~180 ms, RTF 0.51 (vendor)</td><td>3–10 s, no transcript</td><td>ComfyUI node / llama.cpp+ONNX; no clean pip CLI found</td><td>Emerging, thin Windows evidence</td></tr>
+      <tr><td>NeuTTS Air</td><td>Apache-2.0</td><td>748M / ~3.26 GB measured (5090)</td><td>RTFx 1.62× on 5090; 0.88–0.90× on Windows CPU (tts-bench)</td><td>~3 s + transcript</td><td><code>pip install neutts</code> (torch) or GGUF+llama-cpp-python</td><td>Decent, but transcript + CPU-slow</td></tr>
+      <tr><td>XTTS v2</td><td>MPL-2.0 toolkit / <strong>CPML non-commercial weights</strong></td><td>~482M–1.5B / 2–4 GB</td><td>No RTF published</td><td>6 s</td><td><code>pip install coqui-tts</code></td><td><strong>Trap — exclude</strong></td></tr>
+      <tr><td>MaskGCT</td><td>MIT/Apache code / <strong>CC-BY-NC-4.0 weights</strong></td><td>~1B, 6-component stack</td><td>No reliable RTF found</td><td>3 s + transcript</td><td>Amphion monorepo, Py 3.10, torch 2.0.1, espeak-ng</td><td><strong>Trap — exclude</strong></td></tr>
+      <tr><td>ChatTTS</td><td><strong>AGPL-3.0 / CC-BY-NC-4.0</strong></td><td>~? / —</td><td>RTF ~0.3 claimed (developer)</td><td>Samples speaker, does not clone</td><td><code>pip install chattts</code> / git</td><td><strong>Trap — exclude; not a cloner</strong></td></tr>
+      <tr><td>StyleTTS 2</td><td>MIT</td><td>~200M / 2–4 GB</td><td>~5–8× RT on 4070 (secondary)</td><td><strong>No cloning — trained voices only</strong></td><td>git + requirements, GPL phonemizer</td><td><strong>Not a cloner — exclude</strong></td></tr>
+      <tr><td>Pheme</td><td>CC-BY</td><td>~100M class (2024)</td><td>No reliable speed figure found</td><td>One-shot prompting</td><td>Old repo, no Windows evidence</td><td>Outdated, thin evidence</td></tr>
+      <tr><td>OmniVoice</td><td>Apache-2.0 code / <strong>CC-BY-NC weights (per tts-bench) + Higgs tokenizer licence</strong></td><td>~1B / 2–2.4 GB</td><td>Vendor RTF 0.025 (H100); tts-bench: 9.2× RTFx cloning on Mac</td><td>3–10 s (+ transcript in bench)</td><td><code>pip install omnivoice</code></td><td><strong>Contested licence — exclude until resolved</strong></td></tr>
+      <tr><td>Supertonic 3</td><td>MIT code / <strong>OpenRAIL-M weights</strong></td><td>99M / CPU ONNX</td><td>RTF 0.2–0.3 on CPU (vendor/bench)</td><td>Voice Builder only (now shut)</td><td><code>pip install supertonic</code></td><td><strong>Not a zero-shot cloner in open repo; archived July 2026</strong></td></tr>
+      <tr><td>VibeVoice 1.5B</td><td>MIT (repo pulled Sept 2025; community fork)</td><td>1.5B (3B total) / 7–8 GB</td><td>CPU RTFx 0.06× (tts-bench — unusable on CPU); GPU figure not found</td><td>30–60 s (per guides; zero-shot from seconds per others)</td><td>git + Gradio, CUDA</td><td>Long-form/dialogue, slow, pulled upstream</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="muted">* See the per-candidate caveats in the
+  <a href="https://github.com/enonymous1/voice-generator/blob/main/docs/research/fast-open-voice-cloning-tts-2026-11-10.md">full report</a>.
+  “MIT*” for GPT-SoVITS: secondary sources warn base-model files /
+  dependencies carry their own licence notes — check the specific
+  checkpoint.</p>
+
+  <h2>Licence traps — excluded, not clean</h2>
+  <ul>
+    <li><strong>XTTS v2</strong> — CPML non-commercial weights (Coqui is gone).</li>
+    <li><strong>MaskGCT</strong> — CC-BY-NC-4.0 weights.</li>
+    <li><strong>ChatTTS</strong> — AGPL-3.0 code / CC-BY-NC-4.0 weights, and it
+      samples a speaker rather than cloning one.</li>
+    <li><strong>MegaTTS 3</strong> — Apache on paper, but ByteDance withholds
+      the WaveVAE encoder, so cloning a new speaker locally is impossible.</li>
+    <li><strong>OmniVoice</strong> — Apache headline vs CC-BY-NC weights per
+      tts-bench, plus a Higgs-derived tokenizer under the Boson Community
+      License. Exclude until the HF card itself resolves it.</li>
+    <li><strong>LuxTTS / ZipVoice</strong> — LuxTTS claims Apache-2.0, but it
+      is a distilled ZipVoice derivative and ZipVoice’s weights carry no
+      licence grant at all (trained on the CC-BY-NC-4.0 Emilia dataset).</li>
+    <li><strong>Supertonic 3</strong> — OpenRAIL-M weights, and the open repo
+      has no voice-cloning pipeline (the hosted Voice Builder shut down
+      2026-08-31; the repo was announced for archiving July 2026).</li>
+  </ul>
+  <p>Known traps already established before this survey (not re-reported as
+  discoveries): Fish Speech (non-commercial weights), IndexTTS-2/2.5
+  (custom bilibili license), F5-TTS weights (CC-BY-NC), Spark-TTS weights
+  (CC-BY-NC-SA), Higgs (research/non-commercial), Breeze TTS 2 (not open
+  source — hosted API only), Wav2Lip (non-commercial).</p>
+
+  <h2>Not zero-shot cloners — noted briefly</h2>
+  <ul>
+    <li><strong>StyleTTS 2</strong> — MIT, excellent English narration, but
+      trained voices only; no cloning.</li>
+    <li><strong>Kokoro-82M</strong> — Apache-2.0, 82M, ~10× RT on CPU, 54
+      preset voices — no cloning.</li>
+    <li><strong>Piper / MeloTTS / KittenTTS</strong> — fixed-voice, fast, no
+      cloning. (Piper is now GPL-3.0 — check before bundling.)</li>
+  </ul>
+
+  <h2>Could not verify / open questions</h2>
+  <ul>
+    <li><strong>No RTX 3060 speed figure exists in public sources for any
+      candidate.</strong> Every speed ranking above is conditional on a local
+      3060 measurement — that is what the <a href="listen.html">listen page</a>
+      bench is for.</li>
+    <li><strong>LuxTTS 150× claim:</strong> vendor-only, no independent bench found.</li>
+    <li><strong>VoxCPM2 English clone quality vs Chatterbox/Qwen3-TTS:</strong>
+      vendor benchmark tables only; no independent blind listening comparison
+      on the same English clips was found.</li>
+    <li><strong>GPT-SoVITS base-model licences:</strong> secondary sources flag
+      per-file licence notes; the specific v2ProPlus checkpoint files were not
+      re-read.</li>
+    <li><strong>OmniVoice weights licence:</strong> sources conflict; the HF
+      model card itself was not re-read — resolve there before any use.</li>
+    <li><strong>Pocket TTS 1,000-character limit and exact Windows
+      behaviour:</strong> secondary summaries only; Kyutai’s docs emphasise macOS.</li>
+    <li><strong>Dia2 / MOSS-TTS-Realtime / FireRedTTS3 RTF on a 3060:</strong>
+      no figures found; Dia2 figures conflict across sources.</li>
+    <li><strong>Orpheus 1B/400M/150M models:</strong> listed as planned in 2025
+      announcements; no evidence they shipped as practical local models by
+      Nov 2026.</li>
+  </ul>
+
+  <h2>Sources</h2>
+  <ul>
+    <li>Primary (verified live 2026-11-10):
+      <a href="https://github.com/myshell-ai/OpenVoice">OpenVoice</a> ·
+      <a href="https://github.com/Zyphra/Zonos">Zonos</a> ·
+      <a href="https://github.com/ysharma3501/LuxTTS">LuxTTS</a> ·
+      <a href="https://pypi.org/project/voxcpm/">voxcpm on PyPI</a></li>
+    <li>GPT-SoVITS README:
+      <a href="https://raw.githubusercontent.com/RVC-Boss/GPT-SoVITS/main/README.md">raw.githubusercontent.com/RVC-Boss/GPT-SoVITS</a></li>
+    <li>tts-bench results (independent Windows/Mac benches, May 2026):
+      <a href="https://github.com/5uck1ess/tts-bench/blob/HEAD/docs/results.md">5uck1ess/tts-bench — results</a> ·
+      <a href="https://github.com/5uck1ess/tts-bench/blob/HEAD/docs/considered.md">considered</a></li>
+    <li>VoxCPM2 secondary:
+      <a href="https://localaimaster.com/blog/voxcpm2-apache-licence-voice-cloning">localaimaster.com</a> ·
+      <a href="https://www.solosoft.dev/post/voxcpm-tts-2026/">solosoft.dev</a></li>
+    <li>Full source list with per-candidate links:
+      <a href="https://github.com/enonymous1/voice-generator/blob/main/docs/research/fast-open-voice-cloning-tts-2026-11-10.md">the full report in the repo</a></li>
+  </ul>
+</main>
+<footer>
+  Research read 2026-11-10. Figures are as their sources reported them;
+  vendor claims are labelled vendor claims. ·
+  <a href="https://github.com/enonymous1/voice-generator">github.com/enonymous1/voice-generator</a>
+</footer>
+</body>
+</html>

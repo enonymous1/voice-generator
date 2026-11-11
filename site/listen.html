@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Listen — hear the four backends — voice-generator</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav>
+  <a class="brand" href="index.html">voice-generator</a>
+  <a href="listen.html">Listen</a>
+  <a href="research.html">Research</a>
+  <a href="https://github.com/enonymous1/voice-generator">GitHub</a>
+</nav>
+<main>
+  <h1>Listen — same script, four backends</h1>
+  <p>Every backend below rendered the <em>same</em> script from the
+  <em>same</em> reference clip, through
+  <code>tools/ab_compare.py</code>. The comparison is your ears, not a
+  score — the wall-clock times are diagnostics. Samples are real renders
+  from the project; a backend with no sample yet shows as pending, never
+  as a placeholder recording.</p>
+
+  <h2>The script</h2>
+  <p class="muted">This is <code>recording-script.txt</code> from the repo —
+  the same text read aloud for the reference clip, and the same text every
+  backend renders here.</p>
+  <div class="script" id="script">Loading…</div>
+
+  <h2>The renders</h2>
+  <div class="cards" id="cards">
+    <p class="muted">Loading samples…</p>
+  </div>
+  <p class="muted" id="status"></p>
+
+  <h2>How samples get here</h2>
+  <p>After the A/B bench runs on the target Windows box, each backend’s
+  WAV is converted to MP3 and dropped into <code>site/samples/</code>,
+  with one entry per backend in <code>samples.json</code>. The page fills
+  in automatically on the next deploy — no HTML edits.</p>
+  <pre><code>:: 1. Run the bench (from the project folder, any Python)
+python tools\ab_compare.py --script recording-script.txt --ref refs\me_10s.wav --ref-text-file refs\me_10s.txt --chatterbox-python .venv-chatterbox\Scripts\python.exe --qwen-python .venv-qwen3\Scripts\python.exe --voxcpm-python .venv-voxcpm\Scripts\python.exe --out-dir output\ab1
+
+:: 2. Convert each WAV to MP3 (one per backend)
+ffmpeg -i output\ab1\chatterbox.wav -codec:a libmp3lame -q:a 4 site\samples\chatterbox.mp3
+ffmpeg -i output\ab1\qwen3.wav -codec:a libmp3lame -q:a 4 site\samples\qwen3.mp3
+ffmpeg -i output\ab1\voxcpm.wav -codec:a libmp3lame -q:a 4 site\samples\voxcpm.mp3
+
+:: 3. Add one entry per backend to samples.json, e.g.
+:: {"backend": "voxcpm", "file": "samples/voxcpm.mp3",
+::  "duration_s": 52.3, "wall_s": 18.4, "sample_rate": 48000}
+:: (duration_s and wall_s come from output\ab1\ab_comparison.json)
+
+:: 4. Commit + push — the Pages workflow redeploys the site</code></pre>
+  <p class="muted">The raw reference clip (<code>refs/me.wav</code>) is
+  never published — it is personal data and gitignored for that reason.
+  Only the rendered clones go on this page, and only because a voice-clone
+  demo is the point of the page.</p>
+</main>
+<footer>
+  voice-generator is MIT licensed. ·
+  <a href="https://github.com/enonymous1/voice-generator">github.com/enonymous1/voice-generator</a>
+</footer>
+<script>
+(function () {
+  var scriptEl = document.getElementById("script");
+  var cardsEl = document.getElementById("cards");
+  var statusEl = document.getElementById("status");
+
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text !== undefined) n.textContent = text;
+    return n;
+  }
+
+  function cardFor(backend, sample) {
+    var card = el("div", "card" + (sample ? "" : " pending"));
+    card.appendChild(el("h3", null, backend));
+    if (sample) {
+      var audio = document.createElement("audio");
+      audio.controls = true;
+      audio.preload = "none";
+      audio.src = sample.file;
+      card.appendChild(audio);
+      var meta = [];
+      if (sample.duration_s !== undefined)
+        meta.push(sample.duration_s.toFixed(1) + "s of audio");
+      if (sample.wall_s !== undefined)
+        meta.push(sample.wall_s.toFixed(1) + "s wall clock");
+      if (sample.sample_rate !== undefined)
+        meta.push(sample.sample_rate + " Hz");
+      if (meta.length) card.appendChild(el("div", "meta", meta.join(" · ")));
+      if (sample.note) card.appendChild(el("div", "meta", sample.note));
+    } else {
+      card.appendChild(
+        el("p", null, "No sample yet — the A/B bench hasn’t produced a render for this backend. See “How samples get here” below.")
+      );
+    }
+    return card;
+  }
+
+  fetch("samples.json")
+    .then(function (r) {
+      if (!r.ok) throw new Error("samples.json returned " + r.status);
+      return r.json();
+    })
+    .then(function (data) {
+      scriptEl.textContent = data.script || "(no script recorded)";
+      var byBackend = {};
+      (data.samples || []).forEach(function (s) { byBackend[s.backend] = s; });
+      cardsEl.textContent = "";
+      (data.expected || []).forEach(function (backend) {
+        cardsEl.appendChild(cardFor(backend, byBackend[backend] || null));
+      });
+      var n = (data.samples || []).length;
+      var total = (data.expected || []).length;
+      statusEl.textContent = n === 0
+        ? "No samples published yet."
+        : n + " of " + total + " backends have samples.";
+    })
+    .catch(function (err) {
+      scriptEl.textContent = "(Could not load samples.json — serve this folder over HTTP, e.g. python -m http.server, instead of opening the file directly.)";
+      cardsEl.textContent = "";
+      cardsEl.appendChild(
+        el("p", "muted", "Could not load samples.json (" + err.message + ").")
+      );
+    });
+})();
+</script>
+</body>
+</html>

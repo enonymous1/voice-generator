@@ -1,0 +1,182 @@
+/* voice-generator Pages site — plain, self-contained, no external assets.
+   System font stack only: the site must render identically offline,
+   on GitHub Pages, and in a local preview, with no CDN dependency. */
+
+:root {
+  --ink: #1a1a1a;
+  --muted: #555;
+  --line: #ddd;
+  --accent: #1a5fb4;
+  --callout-bg: #eef4fc;
+  --warn-bg: #fff8e6;
+  --code-bg: #f4f4f4;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  color: var(--ink);
+  line-height: 1.6;
+  background: #fff;
+}
+
+nav {
+  border-bottom: 1px solid var(--line);
+  padding: 0.75rem 1rem;
+  display: flex;
+  gap: 1.25rem;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+nav .brand {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--ink);
+  text-decoration: none;
+  margin-right: auto;
+}
+
+nav a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+nav a:hover { text-decoration: underline; }
+
+main {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 3rem;
+}
+
+h1 { font-size: 1.9rem; line-height: 1.25; margin: 0.5rem 0 1rem; }
+h2 { font-size: 1.35rem; margin: 2rem 0 0.75rem; }
+h3 { font-size: 1.1rem; margin: 1.5rem 0 0.5rem; }
+
+p { margin: 0.5rem 0; }
+ul, ol { margin: 0.5rem 0; padding-left: 1.5rem; }
+li { margin: 0.25rem 0; }
+
+a { color: var(--accent); }
+
+code {
+  background: var(--code-bg);
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
+  font-size: 0.92em;
+}
+
+pre {
+  background: var(--code-bg);
+  padding: 0.9rem 1rem;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+pre code { background: none; padding: 0; }
+
+.lede { font-size: 1.15rem; color: #333; }
+
+.callout {
+  background: var(--callout-bg);
+  border-left: 4px solid var(--accent);
+  padding: 0.9rem 1rem;
+  margin: 1rem 0;
+  border-radius: 0 6px 6px 0;
+}
+
+.callout.warn {
+  background: var(--warn-bg);
+  border-left-color: #b58900;
+}
+
+.muted { color: var(--muted); font-size: 0.92rem; }
+
+.table-wrap { overflow-x: auto; margin: 1rem 0; }
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.92rem;
+}
+
+th, td {
+  border: 1px solid var(--line);
+  padding: 0.45rem 0.6rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+th { background: #f7f7f7; }
+
+.btn-row { display: flex; gap: 0.75rem; flex-wrap: wrap; margin: 1rem 0; }
+
+.btn {
+  display: inline-block;
+  background: var(--accent);
+  color: #fff;
+  padding: 0.55rem 1.1rem;
+  border-radius: 6px;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.btn:hover { text-decoration: none; filter: brightness(1.1); }
+
+.btn.secondary {
+  background: #fff;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+
+/* Listen page: one card per backend. A card is either a player or a
+   pending slot — never a fake sample. */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.card h3 { margin-top: 0; }
+
+.card audio { width: 100%; margin-top: 0.5rem; }
+
+.card.pending {
+  background: #fafafa;
+  color: var(--muted);
+}
+
+.card .meta {
+  font-size: 0.88rem;
+  color: var(--muted);
+  margin-top: 0.5rem;
+}
+
+.script {
+  background: var(--code-bg);
+  border-radius: 6px;
+  padding: 1rem 1.1rem;
+  white-space: pre-wrap;
+  font-size: 0.95rem;
+}
+
+footer {
+  border-top: 1px solid var(--line);
+  padding: 1rem;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.9rem;
+}

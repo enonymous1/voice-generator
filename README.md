@@ -510,8 +510,20 @@ voice-generator/
 │       └── voxcpm_backend.py
 ├── tools/
 │   └── ab_compare.py         # cross-environment A/B rendering
-├── docs/assets/
-│   └── architecture.svg      # pipeline diagram (see Visual assets)
+├── .github/workflows/
+│   ├── ci.yml                # GPU-free test suite on push/PR
+│   └── pages.yml             # tests, then deploy site/ to GitHub Pages
+├── site/                     # public landing page (see site/README.md)
+│   ├── index.html            # landing
+│   ├── research.html         # fast-open-models research brief
+│   ├── listen.html           # same script, four backends (samples.json-driven)
+│   ├── samples.json          # listen data: script + sample entries
+│   └── samples/              # MP3 renders (land after the A/B bench)
+├── docs/
+│   ├── assets/
+│   │   └── architecture.svg  # pipeline diagram (see Visual assets)
+│   └── research/
+│       └── fast-open-voice-cloning-tts-2026-11-10.md
 └── tests/                    # pytest; fake engine modules, no GPU/downloads
 ```
 
@@ -549,6 +561,15 @@ is no server, no Docker image, and no hosted component to deploy.
 5. Model weights live in the Hugging Face cache on that box after first
    run; the box is then fully offline. Back up `refs/` (your reference
    clips + transcripts) separately — they are the irreplaceable inputs.
+
+**Website (GitHub Pages):** the public landing page lives in `site/`
+and deploys automatically on push to `main` via
+`.github/workflows/pages.yml` (the test suite runs first; a broken build
+never publishes). It has a landing page, the research brief, and a
+listen/compare page whose audio slots fill in from `samples.json` after
+the A/B bench — see `site/README.md` for how samples land. One-time
+setup after the first push: Settings → Pages → Source: GitHub Actions.
+The site is a static extra: the CLI itself stays a local tool.
 
 **Packaging a release:**
 

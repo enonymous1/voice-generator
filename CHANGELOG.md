@@ -5,6 +5,15 @@ All notable changes to voice-generator, following
 
 ## [Unreleased]
 
+### Added
+- GitHub Pages site (`site/` + `.github/workflows/pages.yml`): landing
+  page, the fast-open-models research brief, and a listen/compare page
+  whose audio slots fill in from `samples.json` after the A/B bench.
+  The full research report is in the repo at
+  `docs/research/fast-open-voice-cloning-tts-2026-11-10.md`. One-time
+  setup after the first push: Settings → Pages → Source: GitHub
+  Actions; the Pages deploy itself is unrun until then.
+
 ## [0.4.0] — 2026-11-10 (VoxCPM2 backend)
 
 ### Added

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>voice-generator — local, fully offline voice cloning</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav>
+  <a class="brand" href="index.html">voice-generator</a>
+  <a href="listen.html">Listen</a>
+  <a href="research.html">Research</a>
+  <a href="https://github.com/enonymous1/voice-generator">GitHub</a>
+</nav>
+<main>
+  <h1>voice-generator</h1>
+  <p class="lede">Local, fully FOSS voice cloning from a text script — Stage 1 of the
+  AI Digital Twin pipeline. Give it a short recording of a voice and a text
+  script; it renders the script in that voice to a WAV file, entirely on
+  your own machine. <strong>Zero APIs, zero cloud.</strong></p>
+
+  <div class="btn-row">
+    <a class="btn" href="listen.html">Listen to the samples</a>
+    <a class="btn secondary" href="https://github.com/enonymous1/voice-generator">Get the code</a>
+  </div>
+
+  <h2>How it works</h2>
+  <ol>
+    <li><strong>Chunk</strong> — split the script on sentence boundaries (up to
+      300 chars per chunk).</li>
+    <li><strong>Validate</strong> — check the reference clip (length, channels,
+      sample rate) before synthesis starts.</li>
+    <li><strong>Synthesize</strong> — the backend loads its model once and renders
+      each chunk to PCM-16 WAV.</li>
+    <li><strong>Join + manifest</strong> — chunks are concatenated
+      sample-accurately, and a <code>.manifest.json</code> is written beside
+      the WAV, recording exactly which backend, reference clip, and settings
+      produced it. That manifest is the contract with Stage 2 (the
+      audio-driven talking head).</li>
+  </ol>
+
+  <h2>Four engines behind one CLI</h2>
+  <p>The TTS field moves monthly, and the candidate models have wildly
+  different licenses and install stories. One interface means you can
+  compare engines on your own voice and script and swap later without
+  touching the CLI, the chunking, or Stage 2. Backends live in separate
+  environments because they pin conflicting torch/CUDA stacks — they are
+  never installed into the same environment, and the core package itself
+  has <strong>no torch dependency</strong>.</p>
+
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Backend</th><th>Status</th><th>License</th><th>Clone reference</th><th>VRAM</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>mock</code></td><td>Working</td><td>— (tone, not speech)</td><td>—</td><td>0</td></tr>
+      <tr><td><code>chatterbox</code></td><td>Working (v0.1)</td><td>MIT — outputs carry a PerTh watermark</td><td>~10 s, no transcript</td><td>~1.5–6 GB</td></tr>
+      <tr><td><code>qwen3</code></td><td>Working (v0.2)</td><td>Apache-2.0</td><td>~3 s + exact transcript</td><td>~4–8 GB</td></tr>
+      <tr><td><code>cosyvoice</code></td><td>Working (v0.3)</td><td>Apache-2.0</td><td>~3 s + exact transcript</td><td>~8–10 GB</td></tr>
+      <tr><td><code>voxcpm</code></td><td>Working (v0.4)</td><td>Apache-2.0</td><td>~5–10 s, no transcript (controllable); + transcript (ultimate)</td><td>~8 GB (vendor)</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p><strong>Which to start with:</strong> Chatterbox — easiest install, no
+  transcript bookkeeping. Qwen3-TTS next for a smaller/faster Apache-2.0
+  model. VoxCPM2 is the fast path to benchmark: one-line pip install, no
+  transcript in its default mode, vendor RTF ~0.30 on a 4090 (no RTX 3060
+  figure published yet — measure it before trusting it). CosyVoice 3 for
+  multilingual work or Chinese dialects, accepting the hardest install.</p>
+
+  <p class="muted">Explicitly <strong>not</strong> included, after license research:
+  Fish Speech (non-commercial weights), IndexTTS-2 (custom bilibili
+  license), F5-TTS / Spark-TTS (non-commercial weights), and
+  “Breeze TTS 2” (no FOSS release found — only a proprietary hosted API).
+  The full survey of alternatives, and why they were ruled in or out,
+  is on the <a href="research.html">research page</a>.</p>
+
+  <h2>Try it</h2>
+  <pre><code>py -3.11 -m venv .venv-core
+.venv-core\Scripts\activate
+pip install -e .
+voice-gen synth --backend mock --text "Hello world. This is a plumbing test." --out output\smoke.wav</code></pre>
+  <p>That proves the pipeline with no GPU and no model downloads. The
+  ordered path from there to hearing your own cloned voice is
+  <a href="https://github.com/enonymous1/voice-generator/blob/main/SETUP.md">SETUP.md</a>
+  in the repo; the full reference is the
+  <a href="https://github.com/enonymous1/voice-generator/blob/main/README.md">README</a>.</p>
+
+  <h2>Listen first</h2>
+  <p>Every backend below rendered the <em>same</em> script from the
+  <em>same</em> reference clip. The comparison is your ears, not a score.
+  <a href="listen.html">Hear the four backends side by side →</a></p>
+
+  <h2>What’s next</h2>
+  <p>Stage 2 — the audio-driven talking head that turns this WAV into a
+  lip-synced video — is a separate, later project. This project’s output
+  contract to Stage 2 is one WAV file plus one
+  <code>.manifest.json</code>.</p>
+</main>
+<footer>
+  voice-generator is MIT licensed. Chatterbox: MIT. Qwen3-TTS, CosyVoice,
+  VoxCPM2: Apache-2.0. ·
+  <a href="https://github.com/enonymous1/voice-generator">github.com/enonymous1/voice-generator</a>
+</footer>
+</body>
+</html>
