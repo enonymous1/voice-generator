@@ -13,6 +13,8 @@ All notable changes to voice-generator, following
   `docs/research/fast-open-voice-cloning-tts-2026-11-10.md`. One-time
   setup after the first push: Settings → Pages → Source: GitHub
   Actions; the Pages deploy itself is unrun until then.
+- The site follows the system light/dark theme (`prefers-color-scheme`,
+  with `<meta name="color-scheme" content="light dark">`).
 
 ## [0.4.0] — 2026-11-10 (VoxCPM2 backend)
 

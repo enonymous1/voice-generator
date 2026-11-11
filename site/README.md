@@ -5,7 +5,9 @@ this folder (`site/`) via `.github/workflows/pages.yml`. Static HTML +
 CSS + a little vanilla JS; no build step, no external assets, no
 framework. Every link is relative, so the site works at the project
 Pages URL (`enonymous1.github.io/voice-generator/`) and in a local
-preview.
+preview. The stylesheet is system-aware: `prefers-color-scheme: dark`
+switches the site to a dark theme, and every page declares
+`<meta name="color-scheme" content="light dark">`.
 
 ## Pages
 

@@ -10,6 +10,29 @@
   --callout-bg: #eef4fc;
   --warn-bg: #fff8e6;
   --code-bg: #f4f4f4;
+  --body-bg: #fff;
+  --th-bg: #f7f7f7;
+  --lede: #333;
+  --pending-bg: #fafafa;
+}
+
+/* System-aware theme: follows the OS light/dark setting. Every color
+   on the page comes from the variables above, so the dark theme is a
+   variable swap, not a second stylesheet. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e6e6e6;
+    --muted: #a8a8a8;
+    --line: #3a3a3a;
+    --accent: #7db3f5;
+    --callout-bg: #16283d;
+    --warn-bg: #332d12;
+    --code-bg: #1f1f1f;
+    --body-bg: #121212;
+    --th-bg: #1e1e1e;
+    --lede: #d4d4d4;
+    --pending-bg: #1a1a1a;
+  }
 }
 
 * { box-sizing: border-box; }
@@ -20,7 +43,7 @@ body {
     "Helvetica Neue", Arial, sans-serif;
   color: var(--ink);
   line-height: 1.6;
-  background: #fff;
+  background: var(--body-bg);
 }
 
 nav {
@@ -81,7 +104,7 @@ pre {
 
 pre code { background: none; padding: 0; }
 
-.lede { font-size: 1.15rem; color: #333; }
+.lede { font-size: 1.15rem; color: var(--lede); }
 
 .callout {
   background: var(--callout-bg);
@@ -113,7 +136,7 @@ th, td {
   vertical-align: top;
 }
 
-th { background: #f7f7f7; }
+th { background: var(--th-bg); }
 
 .btn-row { display: flex; gap: 0.75rem; flex-wrap: wrap; margin: 1rem 0; }
 
@@ -130,7 +153,7 @@ th { background: #f7f7f7; }
 .btn:hover { text-decoration: none; filter: brightness(1.1); }
 
 .btn.secondary {
-  background: #fff;
+  background: var(--body-bg);
   color: var(--accent);
   border: 1px solid var(--accent);
 }
@@ -155,7 +178,7 @@ th { background: #f7f7f7; }
 .card audio { width: 100%; margin-top: 0.5rem; }
 
 .card.pending {
-  background: #fafafa;
+  background: var(--pending-bg);
   color: var(--muted);
 }
 
