@@ -57,7 +57,13 @@ _SEED_RENDERS = (
     ("demo_range", RANGE_TEXT),
 )
 
-_ATTR_RE = re.compile(r'(href|src|action)="(/[^"]*)"')
+_ATTR_RE = re.compile(r'(href|src|action|data-wav|data-manifest)="(/[^"]*)"')
+
+# The Synthesize page fills its textarea by fetching the range script
+# from the live server; the frozen page fetches this static file
+# instead (written by freeze_app below).
+_SCRIPT_FETCH = '"/script?id=range"'
+_SCRIPT_FILE = "script-range.txt"
 
 
 def _rewrite_links(html: str, config: WebConfig) -> tuple[str, list[tuple[Path, str]]]:
@@ -65,6 +71,10 @@ def _rewrite_links(html: str, config: WebConfig) -> tuple[str, list[tuple[Path, 
 
     Returns the rewritten HTML and the media files it points at, as
     (source path, relative destination) pairs for the caller to copy.
+    The History modal reads its audio and manifest URLs from
+    data-wav/data-manifest attributes, so those are rewritten too —
+    leaving them absolute broke the modal on Pages the same way the
+    script fetch broke the Synthesize button.
     """
     media: list[tuple[Path, str]] = []
 
@@ -86,9 +96,13 @@ def _rewrite_links(html: str, config: WebConfig) -> tuple[str, list[tuple[Path, 
             name = path[len("/outputs/"):]
             media.append((config.output_dir / name, f"outputs/{name}"))
             return f'{attr}="outputs/{name}"'
-        return match.group(0)  # anything else (e.g. /script in JS): leave alone
+        return match.group(0)  # anything else: leave alone
 
-    return _ATTR_RE.sub(replace, html), media
+    html = _ATTR_RE.sub(replace, html)
+    # The script fetch is a JS string, not an attribute, so the regex
+    # above never sees it: point it at the static file freeze_app
+    # writes below.
+    return html.replace(_SCRIPT_FETCH, f'"{_SCRIPT_FILE}"'), media
 
 
 def freeze_app(config: WebConfig, out_dir: str | Path, *, seeded: bool = False) -> dict:
@@ -127,6 +141,11 @@ def freeze_app(config: WebConfig, out_dir: str | Path, *, seeded: bool = False) 
     # One stylesheet for every frozen page, from the Flask static dir.
     shutil.copyfile(Path(app.static_folder) / "style.css", out / "style.css")
     files.append("style.css")
+
+    # The range script as a static file: the frozen Synthesize page
+    # fetches it instead of the live /script route.
+    (out / _SCRIPT_FILE).write_text(RANGE_TEXT, encoding="utf-8")
+    files.append(_SCRIPT_FILE)
 
     for src, rel in media:
         if not src.is_file():

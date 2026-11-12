@@ -52,6 +52,17 @@ def client(project):
     return create_app(config).test_client()
 
 
+def test_synth_page_range_script_button(client):
+    resp = client.get("/synth")
+    html = resp.get_data(as_text=True)
+    assert 'id="load-range-script"' in html
+    assert 'fetch("/script?id=range")' in html
+    # A failed fetch must not paste the error page into the textarea:
+    # the handler checks the response before using it.
+    assert "if (!r.ok)" in html
+    assert "Couldn't load the emotional-range script" in html
+
+
 def test_index_renders_landing(client):
     resp = client.get("/")
     assert resp.status_code == 200

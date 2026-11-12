@@ -803,5 +803,9 @@ not.
     references can be deleted from their detail row.
 26. **v0.5.19** — each History row has a small red Delete button that
     removes that render's WAV and manifest.
-27. v0.6.0 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
+27. **v0.5.20** — the frozen site's script-fill button and History
+    modal work: the freeze writes the range script to a static file
+    and rewrites the modal's data URLs to relative paths, instead of
+    leaving absolute live-server URLs that 404 on Pages.
+28. v0.6.0 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
     MuseTalk): WAV + manifest in, lip-synced MP4 out.

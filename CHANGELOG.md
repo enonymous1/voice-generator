@@ -5,6 +5,23 @@ All notable changes to voice-generator, following
 
 ## [Unreleased]
 
+## [0.5.20] — 2026-11-12 (frozen site: script fill + history modal)
+
+### Fixed
+- On the deployed Pages site, "Use the emotional-range script"
+  pasted GitHub's 404 page into the textarea. The frozen page kept
+  fetching the live `/script` route (absolute, so it hit the domain
+  root and 404d), and the handler used the response without checking
+  it. The freeze now writes the range script to `script-range.txt`
+  and the frozen page fetches that instead — and the handler checks
+  `r.ok` first, so a failed fetch reports an error instead of
+  pasting an error page.
+- Same root cause, same fix, on the frozen History page: the modal
+  read its audio and manifest URLs from `data-wav`/`data-manifest`
+  attributes, which the freeze never rewrote, so they stayed
+  absolute and 404d on Pages too. Those attributes are rewritten to
+  relative paths now, and the modal loads its manifest.
+
 ## [0.5.19] — 2026-11-12 (delete renders from History)
 
 ### Added

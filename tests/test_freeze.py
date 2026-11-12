@@ -17,6 +17,7 @@ from voice_generator.audio import write_pcm16_wav  # noqa: E402
 from voice_generator.cli import main  # noqa: E402
 from voice_generator.pipeline import synthesize_script  # noqa: E402
 from voice_generator.web.freeze import freeze_project  # noqa: E402
+from voice_generator.web.scripts import RANGE_TEXT  # noqa: E402
 
 SCRIPT = "Hello, this is a test of my cloned voice."
 
@@ -90,6 +91,21 @@ def test_freeze_writes_pages_and_rewrites_links(project, tmp_path):
     assert 'target="_blank"' in history  # no-JS fallback: new tab, not navigation
     assert (out / "outputs" / "demo.wav").is_file()
     assert (out / "outputs" / "demo.manifest.json").is_file()
+    # The modal reads its URLs from data attributes, so those are
+    # rewritten to relative paths too — absolute ones 404d on Pages
+    # the same way the script fetch did.
+    assert 'data-wav="outputs/demo.wav"' in history
+    assert 'data-manifest="outputs/demo.manifest.json"' in history
+    assert 'data-wav="/outputs/' not in history
+    assert 'data-manifest="/outputs/' not in history
+    # The Synthesize button fetches the range script from a static
+    # file now, not the live /script route (which 404s on Pages and
+    # used to paste GitHub's 404 page into the textarea).
+    synth_raw = (out / "synth.html").read_text(encoding="utf-8")
+    assert 'fetch("script-range.txt")' in synth_raw
+    assert 'fetch("/script?id=range")' not in synth_raw
+    assert (out / "script-range.txt").is_file()
+    assert (out / "script-range.txt").read_text(encoding="utf-8") == RANGE_TEXT
     # The research page renders the Markdown report from docs/research.
     research = (out / "research.html").read_text(encoding="utf-8")
     assert "<table" in research
