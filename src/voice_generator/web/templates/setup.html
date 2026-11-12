@@ -2,13 +2,46 @@
 {% block title %}Setup — voice-generator{% endblock %}
 {% block content %}
 <h1>Setup — your reference clip</h1>
-<p>Read the script below out loud, in a quiet room, mic 15–30 cm away,
-in your normal voice. The recording becomes the voice every backend
-clones from. The transcript is the script itself — it is stored next to
-the clip, so the backends that need a transcript get it automatically.</p>
+<p>Read a script out loud, in a quiet room, mic 15–30 cm away, in your
+normal voice. The recording becomes the voice every backend clones
+from. Pick the script below — the transcript stored with the clip is
+the exact text you read, so the backends that need a transcript get it
+automatically.</p>
 
-<h2>The script</h2>
-<div class="script">{{ script }}</div>
+<div class="callout">
+  <strong>Why the script matters, and how long the clip should be.</strong>
+  The backends clone from a short prompt — about 10 seconds for
+  Chatterbox, Qwen3 and CosyVoice, up to 30 seconds for VoxCPM2. Read
+  the whole passage, then use the cleanest stretch: a longer recording
+  is material to trim from, not extra voice data the model hears in
+  full. The transcript saved with the clip is the full passage — if you
+  trim the clip afterwards, update the matching
+  <code>refs/&lt;name&gt;.txt</code> to the exact words in the trimmed
+  clip.
+</div>
+
+<h2>Choose a script</h2>
+<div class="btn-row" role="radiogroup" aria-label="Recording script">
+  {% for s in scripts %}
+  <label class="script-pick">
+    <input type="radio" name="script-choice" value="{{ s.id }}" {% if loop.first %}checked{% endif %}>
+    <strong>{{ s.title }}</strong><br>
+    <span class="muted">{{ s.blurb }}</span>
+  </label>
+  {% endfor %}
+</div>
+
+{% for s in scripts %}
+<div class="script-block" id="script-{{ s.id }}" {% if not loop.first %}hidden{% endif %}>
+  <div class="script">{{ s.text }}</div>
+  <h3>Why this script works</h3>
+  <ul>
+    {% for point in s.why %}
+    <li>{{ point }}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endfor %}
 
 <h2>Record in the browser</h2>
 <div id="rec-unsupported" class="callout warn" hidden>
@@ -37,6 +70,7 @@ first. The clip is validated the same way <code>voice-gen check-ref</code>
 validates it, and a name that already exists is refused — never silently
 overwritten.</p>
 <form method="post" action="{{ url_for('setup_upload') }}" enctype="multipart/form-data">
+  <input type="hidden" name="script" id="script-id" value="intro">
   <label for="clip">Audio file</label>
   <input type="file" id="clip" name="clip" accept="audio/*,.wav,.webm,.m4a,.mp3,.ogg">
   <label for="name">Reference name</label>
@@ -68,6 +102,16 @@ overwritten.</p>
 
 <script>
 (function () {
+  var scriptId = document.getElementById("script-id");
+  document.querySelectorAll('input[name="script-choice"]').forEach(function (radio) {
+    radio.addEventListener("change", function () {
+      scriptId.value = radio.value;
+      document.querySelectorAll(".script-block").forEach(function (block) {
+        block.hidden = block.id !== "script-" + radio.value;
+      });
+    });
+  });
+
   var supported = !!(navigator.mediaDevices && window.MediaRecorder);
   document.getElementById("rec-unsupported").hidden = supported;
   document.getElementById("rec-ui").hidden = !supported;
@@ -118,6 +162,7 @@ overwritten.</p>
     var fd = new FormData();
     fd.append("clip", blob, "recording.webm");
     fd.append("name", document.getElementById("rec-name").value);
+    fd.append("script", scriptId.value);
     statusEl.textContent = "Saving…";
     fetch("{{ url_for('record_api') }}", { method: "POST", body: fd })
       .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })

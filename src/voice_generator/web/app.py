@@ -41,6 +41,7 @@ from voice_generator.audio import wav_info
 from voice_generator.backends import available_backends
 from voice_generator.web.jobs import JobStore, start_job
 from voice_generator.web.refs import MAX_UPLOAD_BYTES, save_reference
+from voice_generator.web.scripts import SCRIPTS, get_script, resolve_text
 
 # Which backends take which extra CLI flags from the synth form.
 _BACKEND_FLAGS: dict[str, list[str]] = {
@@ -133,7 +134,9 @@ def create_app(config: WebConfig | None = None) -> Flask:
 
     @app.get("/script")
     def script():
-        return cfg.script_text(), 200, {"Content-Type": "text/plain; charset=utf-8"}
+        # ?id=range / ?id=harvard picks a script; default is the intro.
+        text = resolve_text(get_script(request.args.get("id")), cfg.script_text())
+        return text, 200, {"Content-Type": "text/plain; charset=utf-8"}
 
     @app.route("/synth", methods=["GET", "POST"])
     def synth():
@@ -249,11 +252,21 @@ def create_app(config: WebConfig | None = None) -> Flask:
 
     @app.get("/setup")
     def setup():
+        scripts = [
+            {
+                "id": s.id,
+                "title": s.title,
+                "blurb": s.blurb,
+                "why": s.why,
+                "text": resolve_text(s, cfg.script_text()),
+            }
+            for s in SCRIPTS
+        ]
         return render_template(
-            "setup.html", script=cfg.script_text(), refs=cfg.list_refs()
+            "setup.html", scripts=scripts, refs=cfg.list_refs()
         )
 
-    def _store_upload(upload, name: str) -> dict[str, object]:
+    def _store_upload(upload, name: str, script_id: str | None = None) -> dict[str, object]:
         """Shared intake for the form upload and the JS recorder."""
         suffix = Path(upload.filename or "").suffix or ".bin"
         with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
@@ -265,7 +278,8 @@ def create_app(config: WebConfig | None = None) -> Flask:
                 upload_suffix=suffix,
                 name=name.strip(),
                 refs_dir=cfg.refs_dir,
-                transcript=cfg.script_text(),
+                # The transcript is the script the user actually read.
+                transcript=resolve_text(get_script(script_id), cfg.script_text()),
             )
         finally:
             tmp_path.unlink(missing_ok=True)
@@ -278,7 +292,7 @@ def create_app(config: WebConfig | None = None) -> Flask:
             flash("No file chosen — pick a WAV (or record one in the browser).", "error")
             return redirect(url_for("setup"))
         try:
-            result = _store_upload(upload, name)
+            result = _store_upload(upload, name, request.form.get("script"))
         except ValueError as exc:
             flash(str(exc), "error")
             return redirect(url_for("setup"))
@@ -298,7 +312,7 @@ def create_app(config: WebConfig | None = None) -> Flask:
         if upload is None or not upload.filename:
             return jsonify({"error": "no recording received"}), 400
         try:
-            result = _store_upload(upload, name)
+            result = _store_upload(upload, name, request.form.get("script"))
         except ValueError as exc:
             return jsonify({"error": str(exc)}), 400
         info = result["info"]

@@ -70,14 +70,39 @@ def test_setup_page_shows_script(client):
     assert SCRIPT in resp.get_data(as_text=True)
 
 
+def test_setup_page_lists_script_options(client):
+    resp = client.get("/setup")
+    html = resp.get_data(as_text=True)
+    assert "Emotional range" in html
+    assert "Harvard sentences" in html
+    # The range paragraph and its "why" notes are on the page.
+    assert "87.5%" in html
+    assert "upward inflection" in html
+    # The fox line is labeled a pangram, not a Harvard sentence.
+    assert "pangram" in html
+    # The clip-length guidance the page now carries.
+    assert "about 10 seconds" in html
+
+
+def test_script_endpoint_with_id(client):
+    resp = client.get("/script?id=range")
+    assert resp.status_code == 200
+    assert "6:45 AM" in resp.get_data(as_text=True)
+    assert "V-12 project launched in 2023" in resp.get_data(as_text=True)
+    resp = client.get("/script?id=bogus")
+    assert resp.get_data(as_text=True) == SCRIPT
+
+
 def test_script_endpoint(client):
     resp = client.get("/script")
     assert resp.status_code == 200
     assert resp.get_data(as_text=True) == SCRIPT
 
 
-def _upload(client, name: str, wav_path, filename: str = "clip.wav"):
+def _upload(client, name: str, wav_path, filename: str = "clip.wav", script: str | None = None):
     data = {"clip": (open(wav_path, "rb"), filename), "name": name}
+    if script is not None:
+        data["script"] = script
     return client.post("/setup/upload", data=data, content_type="multipart/form-data")
 
 
@@ -93,7 +118,23 @@ def test_upload_wav_saves_ref_and_transcript(client, project):
     assert "me2" in page.get_data(as_text=True)
 
 
-def test_upload_duplicate_name_refused(client, project):
+def test_upload_with_range_script_stores_range_transcript(client, project):
+    wav = project / "upload.wav"
+    _tone_wav(wav)
+    resp = _upload(client, "range1", wav, script="range")
+    assert resp.status_code == 302
+    # The transcript is the paragraph the user read, not the intro script.
+    txt = (project / "refs" / "range1.txt").read_text(encoding="utf-8")
+    assert "V-12 project launched in 2023" in txt
+    assert "87.5%" in txt
+
+
+def test_upload_unknown_script_falls_back_to_intro(client, project):
+    wav = project / "upload.wav"
+    _tone_wav(wav)
+    resp = _upload(client, "fallback", wav, script="bogus")
+    assert resp.status_code == 302
+    assert (project / "refs" / "fallback.txt").read_text(encoding="utf-8") == SCRIPT
     wav = project / "upload.wav"
     _tone_wav(wav)
     _upload(client, "me2", wav)
@@ -140,6 +181,21 @@ def test_record_api_accepts_wav(client, project):
     assert body["ok"] is True
     assert body["duration_s"] == 12.0
     assert (project / "refs" / "api.wav").is_file()
+
+
+def test_record_api_with_harvard_script(client, project):
+    wav = project / "upload.wav"
+    _tone_wav(wav)
+    data = {
+        "clip": (open(wav, "rb"), "recording.wav"),
+        "name": "harvard1",
+        "script": "harvard",
+    }
+    resp = client.post("/api/record", data=data, content_type="multipart/form-data")
+    assert resp.status_code == 200
+    txt = (project / "refs" / "harvard1.txt").read_text(encoding="utf-8")
+    assert "The quick brown fox jumps over the lazy dog." in txt
+    assert "A king ruled the state in the early days." in txt
 
 
 def _poll_job(client, job_id: str, timeout_s: float = 60.0) -> dict:

@@ -253,10 +253,11 @@ pip install -e ".[web]"
 voice-gen serve
 ```
 
-Open http://127.0.0.1:5000/ — localhost only. **Setup** shows this
-recording script: read it aloud in the browser (or upload a clip) and
-it is validated and saved as `refs/me.wav` with the transcript stored
-beside it. **Synthesize** pastes text, picks a backend and a clip, and
+Open http://127.0.0.1:5000/ — localhost only. **Setup** shows the
+recording script: pick one of three (project introduction,
+emotional-range paragraph, Harvard sentences), read it aloud in the
+browser (or upload a clip) and it is validated and saved as
+`refs/me.wav` with the transcript stored beside it. **Synthesize** pastes text, picks a backend and a clip, and
 renders in the background with a live log. **History** lists past
 renders. With separate backend venvs, pass them through:
 `voice-gen serve --chatterbox-python .venv-chatterbox\Scripts\python.exe

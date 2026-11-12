@@ -5,6 +5,22 @@ All notable changes to voice-generator, following
 
 ## [Unreleased]
 
+## [0.5.1] — 2026-11-12 (recording-script options)
+
+### Added
+- The Setup page offers three recording scripts instead of one
+  (`src/voice_generator/web/scripts.py`): the project introduction
+  (default), an emotional-range paragraph (questions, exclamation,
+  pauses, alphanumeric data, lower register), and Harvard sentences
+  (IEEE List 5 — verified against the Columbia/McGill copies; the
+  quick-brown-fox line is labeled a pangram, not a Harvard sentence).
+  Each script shows its "why this works" notes, and the clip-length
+  guidance: backends clone from ~10 s (Chatterbox/Qwen3/CosyVoice) or
+  up to 30 s (VoxCPM2), so a longer recording is material to trim from,
+  and trimming a clip means updating its matching `.txt` transcript.
+  The chosen script's text is stored as the reference transcript;
+  `/script?id=range` (or `harvard`) serves any script's text.
+
 ## [0.5.0] — 2026-11-12 (local web UI)
 
 ### Added

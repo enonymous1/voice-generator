@@ -474,8 +474,10 @@ voice-gen serve --chatterbox-python .venv-chatterbox\Scripts\python.exe --qwen-p
 
 Three pages:
 
-- **Setup** — shows the recording script to read aloud. Record in the
-  browser (MediaRecorder) or upload a file; a non-WAV recording is
+- **Setup** — shows the recording script to read aloud. Pick one of
+  three scripts (project introduction, emotional-range paragraph,
+  Harvard sentences), each with its "why this works" notes. Record in
+  the browser (MediaRecorder) or upload a file; a non-WAV recording is
   converted with ffmpeg to 16 kHz mono PCM-16, validated the same way
   `check-ref` validates it, and saved as `refs/<name>.wav` with the
   script text stored as `refs/<name>.txt`. An existing name is refused,
@@ -503,7 +505,7 @@ the system light/dark theme.
 
 ```bat
 pip install -e ".[dev,web]"
-pytest        :: 61 tests, no GPU, no downloads, no torch needed
+pytest        :: 65 tests, no GPU, no downloads, no torch needed
 ruff check src tests tools
 ```
 
@@ -555,6 +557,7 @@ voice-generator/
 │       ├── app.py          # app factory + routes (Synthesize/Setup/History)
 │       ├── jobs.py         # background synth jobs (CLI subprocess + live log)
 │       ├── refs.py         # reference-clip intake (ffmpeg convert + validate)
+│       ├── scripts.py      # recording-script options + "why this works" notes
 │       ├── templates/      # Jinja2 pages (base, synth, setup, job, history)
 │       └── static/style.css  # system-aware light/dark theme
 ├── tools/
@@ -710,5 +713,8 @@ not.
    with a live log), History (past renders + manifests). GitHub Pages
    site (landing, research brief, listen/compare) + system-aware
    light/dark theme on the site and the UI.
-8. v0.6.0 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
+8. **v0.5.1** — three recording scripts on the Setup page (project
+   introduction, emotional-range paragraph, Harvard sentences) with
+   their "why this works" notes and clip-length guidance.
+9. v0.6.0 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
    MuseTalk): WAV + manifest in, lip-synced MP4 out.
