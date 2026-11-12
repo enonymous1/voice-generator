@@ -588,6 +588,56 @@ def test_unknown_job_404(client):
     assert client.get("/api/jobs/nope").status_code == 404
 
 
+def test_history_delete_removes_render(project, client):
+    synthesize_script(
+        text="Hello demo.",
+        reference_wav=None,
+        out_wav=project / "output" / "demo.wav",
+        backend_name="mock",
+    )
+    resp = client.post("/history/delete", data={"name": "demo.wav"})
+    assert resp.status_code == 302
+    assert not (project / "output" / "demo.wav").exists()
+    assert not (project / "output" / "demo.manifest.json").exists()
+    page = client.get("/history")
+    html = page.get_data(as_text=True)
+    assert "Deleted output/demo.wav and its manifest." in html
+    assert '<dialog id="flash-dialog"' in html
+    assert "No renders yet" in html
+
+
+def test_history_delete_unknown_or_bad_name_errors(project, client):
+    synthesize_script(
+        text="Hello demo.",
+        reference_wav=None,
+        out_wav=project / "output" / "demo.wav",
+        backend_name="mock",
+    )
+    for bad in ("nope.wav", "../demo.wav", "demo.txt", "sub/demo.wav"):
+        resp = client.post("/history/delete", data={"name": bad})
+        assert resp.status_code == 302
+        page = client.get("/history")
+        assert "bad render name" in page.get_data(as_text=True) or (
+            "no render named" in page.get_data(as_text=True)
+        )
+    # Nothing was deleted by any attempt.
+    assert (project / "output" / "demo.wav").is_file()
+    assert (project / "output" / "demo.manifest.json").is_file()
+
+
+def test_history_page_has_delete_form(project, client):
+    synthesize_script(
+        text="Hello demo.",
+        reference_wav=None,
+        out_wav=project / "output" / "demo.wav",
+        backend_name="mock",
+    )
+    html = client.get("/history").get_data(as_text=True)
+    assert 'class="history-delete-form"' in html
+    assert 'action="/history/delete"' in html
+    assert '>Delete</button>' in html
+
+
 def test_history_empty_state(client):
     resp = client.get("/history")
     assert resp.status_code == 200

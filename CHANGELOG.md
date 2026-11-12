@@ -5,6 +5,15 @@ All notable changes to voice-generator, following
 
 ## [Unreleased]
 
+## [0.5.19] — 2026-11-12 (delete renders from History)
+
+### Added
+- Each History row has a small red **Delete** button (browser confirm
+  first) that removes that render's WAV and manifest. The name is
+  validated as a plain `.wav` filename inside `output/` — no path
+  traversal — and the confirmation dialog reports what was removed.
+  Frozen pages carry no delete button: the action can't work there.
+
 ## [0.5.18] — 2026-11-12 (script check + delete references)
 
 ### Added

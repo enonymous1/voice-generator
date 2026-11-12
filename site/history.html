@@ -38,7 +38,8 @@
 Each row is a WAV plus the manifest that records exactly how it was
 made — the same provenance the CLI writes. Click a render to open it
 in a dialog (player + manifest); without JavaScript the links open in
-a new tab instead, so this page stays put.</p>
+a new tab instead, so this page stays put. A Delete button on each row
+removes that render's WAV and manifest.</p>
 
 
 <div class="table-wrap">
@@ -52,6 +53,7 @@ a new tab instead, so this page stays put.</p>
       <td>31.357s</td>
       <td>24000 Hz</td>
       <td><a href="outputs/demo_range.manifest.json" target="_blank" rel="noopener" data-render data-wav="/outputs/demo_range.wav" data-manifest="/outputs/demo_range.manifest.json" data-manifest-name="demo_range.manifest.json" data-name="demo_range.wav" data-backend="mock" data-duration="31.357" data-rate="24000">manifest</a></td>
+      
     </tr>
     
     <tr>
@@ -60,6 +62,7 @@ a new tab instead, so this page stays put.</p>
       <td>3.643s</td>
       <td>24000 Hz</td>
       <td><a href="outputs/demo_hello.manifest.json" target="_blank" rel="noopener" data-render data-wav="/outputs/demo_hello.wav" data-manifest="/outputs/demo_hello.manifest.json" data-manifest-name="demo_hello.manifest.json" data-name="demo_hello.wav" data-backend="mock" data-duration="3.643" data-rate="24000">manifest</a></td>
+      
     </tr>
     
   </tbody>
@@ -83,6 +86,18 @@ a new tab instead, so this page stays put.</p>
 
 <script>
 (function () {
+  // Delete is destructive: ask first. The form still posts normally,
+  // so without JS there is no confirm — the server only deletes the
+  // named render's WAV and manifest.
+  document.querySelectorAll(".history-delete-form").forEach(function (form) {
+    form.addEventListener("submit", function (e) {
+      var name = form.querySelector('input[name="name"]').value;
+      if (!window.confirm("Delete render '" + name + "'? Its WAV and manifest will be removed.")) {
+        e.preventDefault();
+      }
+    });
+  });
+
   var dialog = document.getElementById("render-modal");
   if (!dialog || !dialog.showModal) return; // no <dialog>: links stay new-tab
   var title = document.getElementById("modal-title");

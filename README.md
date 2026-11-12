@@ -513,7 +513,8 @@ Four pages plus a home page:
   manifests. Clicking a render opens it in a dialog (player,
   backend/duration/rate, download links, manifest pretty-printed);
   without JavaScript the links open in a new tab instead, so the page
-  stays put.
+  stays put. A small red Delete button on each row (browser confirm
+  first) removes that render's WAV and manifest.
 - **Research** — the fast-open-voice-cloning-models survey, rendered
   from the Markdown report in `docs/research/` (newest dated file),
   so the UI and the published research page always show the same text.
@@ -800,5 +801,7 @@ not.
     transcript named in the save confirmation) so a wrong script
     selection is caught before or right after saving; saved
     references can be deleted from their detail row.
-26. v0.6.0 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
+26. **v0.5.19** — each History row has a small red Delete button that
+    removes that render's WAV and manifest.
+27. v0.6.0 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
     MuseTalk): WAV + manifest in, lip-synced MP4 out.

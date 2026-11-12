@@ -323,6 +323,8 @@ audio { width: 100%; margin-top: 0.5rem; }
   color: var(--danger-ink);
 }
 
+.btn.small { padding: 0.3rem 0.6rem; font-size: 0.9rem; }
+
 .ref-delete-form { margin-top: 1rem; }
 
 .cards {

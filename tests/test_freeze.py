@@ -109,6 +109,11 @@ def test_freeze_writes_pages_and_rewrites_links(project, tmp_path):
     assert 'target="_blank" rel="noopener">Get the code</a>' in index
     # Frozen pages never flash, so no confirmation dialog is rendered.
     assert "flash-dialog" not in index
+    # Frozen pages can't delete (the forms would be inert), so the
+    # History page carries no delete form — the JS handler still
+    # references the class name, so assert on the form's attribute.
+    history = (out / "history.html").read_text(encoding="utf-8")
+    assert 'class="history-delete-form"' not in history
     # The listen/compare page is copied verbatim.
     assert (out / "listen.html").is_file()
     assert (out / "samples.json").is_file()

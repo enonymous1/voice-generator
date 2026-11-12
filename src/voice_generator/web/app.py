@@ -431,6 +431,42 @@ def create_app(config: WebConfig | None = None) -> Flask:
     def history():
         return render_template("history.html", rows=cfg.list_history())
 
+    def _delete_render(name: str) -> bool:
+        """Delete a render's WAV and its manifest from the output dir.
+
+        Returns whether a manifest was deleted too. Raises ValueError
+        when the name is not a plain ``.wav`` filename in the output
+        dir or no such render exists.
+        """
+        if not name.endswith(".wav") or "/" in name or "\\" in name:
+            raise ValueError(f"bad render name {name!r}")
+        wav_path = (cfg.output_dir / name).resolve()
+        if not wav_path.is_relative_to(cfg.output_dir.resolve()):
+            raise ValueError(f"bad render name {name!r}")
+        if not wav_path.is_file():
+            raise ValueError(f"no render named {name!r} to delete")
+        manifest_path = wav_path.with_name(wav_path.stem + ".manifest.json")
+        wav_path.unlink()
+        had_manifest = manifest_path.is_file()
+        if had_manifest:
+            manifest_path.unlink()
+        return had_manifest
+
+    @app.post("/history/delete")
+    def history_delete():
+        name = request.form.get("name") or ""
+        try:
+            deleted_manifest = _delete_render(name)
+        except ValueError as exc:
+            flash(str(exc), "error")
+            return redirect(url_for("history"))
+        flash(
+            f"Deleted output/{name}"
+            + (" and its manifest." if deleted_manifest else "."),
+            "ok",
+        )
+        return redirect(url_for("history"))
+
     @app.get("/research")
     def research():
         md = cfg.research_markdown()

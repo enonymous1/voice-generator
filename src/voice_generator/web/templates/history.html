@@ -6,12 +6,13 @@
 Each row is a WAV plus the manifest that records exactly how it was
 made — the same provenance the CLI writes. Click a render to open it
 in a dialog (player + manifest); without JavaScript the links open in
-a new tab instead, so this page stays put.</p>
+a new tab instead, so this page stays put. A Delete button on each row
+removes that render's WAV and manifest.</p>
 
 {% if rows %}
 <div class="table-wrap">
 <table>
-  <thead><tr><th>File</th><th>Backend</th><th>Duration</th><th>Rate</th><th>Manifest</th></tr></thead>
+  <thead><tr><th>File</th><th>Backend</th><th>Duration</th><th>Rate</th><th>Manifest</th>{% if not config.get("FROZEN") %}<th></th>{% endif %}</tr></thead>
   <tbody>
     {% for r in rows %}
     <tr>
@@ -20,6 +21,14 @@ a new tab instead, so this page stays put.</p>
       <td>{% if r.duration_s is not none %}{{ r.duration_s }}s{% else %}—{% endif %}</td>
       <td>{% if r.sample_rate is not none %}{{ r.sample_rate }} Hz{% else %}—{% endif %}</td>
       <td><a href="{{ url_for('output_file', filename=r.manifest) }}" target="_blank" rel="noopener" data-render data-wav="{{ url_for('output_file', filename=r.name) }}" data-manifest="{{ url_for('output_file', filename=r.manifest) }}" data-manifest-name="{{ r.manifest }}" data-name="{{ r.name }}" data-backend="{{ r.backend }}" data-duration="{{ r.duration_s if r.duration_s is not none else '' }}" data-rate="{{ r.sample_rate if r.sample_rate is not none else '' }}">manifest</a></td>
+      {% if not config.get("FROZEN") %}
+      <td>
+        <form method="post" action="{{ url_for('history_delete') }}" class="history-delete-form">
+          <input type="hidden" name="name" value="{{ r.name }}">
+          <button type="submit" class="btn danger small">Delete</button>
+        </form>
+      </td>
+      {% endif %}
     </tr>
     {% endfor %}
   </tbody>
@@ -43,6 +52,18 @@ a new tab instead, so this page stays put.</p>
 
 <script>
 (function () {
+  // Delete is destructive: ask first. The form still posts normally,
+  // so without JS there is no confirm — the server only deletes the
+  // named render's WAV and manifest.
+  document.querySelectorAll(".history-delete-form").forEach(function (form) {
+    form.addEventListener("submit", function (e) {
+      var name = form.querySelector('input[name="name"]').value;
+      if (!window.confirm("Delete render '" + name + "'? Its WAV and manifest will be removed.")) {
+        e.preventDefault();
+      }
+    });
+  });
+
   var dialog = document.getElementById("render-modal");
   if (!dialog || !dialog.showModal) return; // no <dialog>: links stay new-tab
   var title = document.getElementById("modal-title");
