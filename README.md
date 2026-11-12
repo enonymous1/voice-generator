@@ -472,8 +472,12 @@ voice-gen serve
 voice-gen serve --chatterbox-python .venv-chatterbox\Scripts\python.exe --qwen-python .venv-qwen3\Scripts\python.exe --voxcpm-python .venv-voxcpm\Scripts\python.exe
 ```
 
-Three pages plus a reference page:
+Four pages plus a home page:
 
+- **Home** (`/`) — what the tool is, a Start-here path (Setup →
+  Synthesize → History → Research), how it works, the four-engines
+  table, which backend to start with, the CLI quickstart. The same
+  template the freeze uses for the public site's index.
 - **Setup** — shows the recording script to read aloud. Pick one of
   two scripts (emotional-range paragraph, Harvard sentences), each with
   its "why this works" notes. Record in the browser from its own card
@@ -775,5 +779,7 @@ not.
 20. **v0.5.13** — the trim form gains a Preview trim button that plays
     just the [start, end] slice, so the trimmed transcript can be
     written to match what the copy actually says.
-21. v0.6.0 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
+21. **v0.5.14** — the UI lands on a real home page (Start-here path,
+    how it works, engines table) instead of redirecting to Synthesize.
+22. v0.6.0 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
     MuseTalk): WAV + manifest in, lip-synced MP4 out.

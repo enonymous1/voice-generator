@@ -95,7 +95,16 @@ def test_freeze_writes_pages_and_rewrites_links(project, tmp_path):
     assert "<table" in research
     assert "VoxCPM2" in research
     # The landing page carries the site's copy.
-    assert "Four engines behind one CLI" in (out / "index.html").read_text(encoding="utf-8")
+    index = (out / "index.html").read_text(encoding="utf-8")
+    assert "Four engines behind one CLI" in index
+    assert "Start here" in index
+    # Frozen: the listen button still goes to the compare page, and the
+    # Start-here links are rewritten to the frozen pages.
+    assert 'href="listen.html"' in index
+    assert "Listen to the samples" in index
+    assert 'href="setup.html"' in index
+    assert 'href="synth.html"' in index
+    assert 'href="index.html"' in index  # the brand now links home
     # The listen/compare page is copied verbatim.
     assert (out / "listen.html").is_file()
     assert (out / "samples.json").is_file()

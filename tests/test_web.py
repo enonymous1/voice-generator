@@ -52,10 +52,20 @@ def client(project):
     return create_app(config).test_client()
 
 
-def test_index_redirects_to_synth(client):
+def test_index_renders_landing(client):
     resp = client.get("/")
-    assert resp.status_code == 302
-    assert resp.headers["Location"].endswith("/synth")
+    assert resp.status_code == 200
+    html = resp.get_data(as_text=True)
+    assert "Four engines behind one CLI" in html
+    assert "Start here" in html
+    assert 'href="/synth"' in html
+    assert 'href="/setup"' in html
+    assert 'href="/history"' in html
+    assert 'href="/research"' in html
+    # Live: the listen button goes to past renders, not the Pages page.
+    assert "Listen to past renders" in html
+    assert "listen.html" not in html
+    assert "Static preview" not in html  # the frozen banner is freeze-only
 
 
 def test_synth_page_lists_backends_and_refs(client):

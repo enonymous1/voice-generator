@@ -8,9 +8,28 @@ script; it renders the script in that voice to a WAV file, entirely on
 your own machine. <strong>Zero APIs, zero cloud.</strong></p>
 
 <div class="btn-row">
+  {% if config.get("FROZEN") %}
   <a class="btn" href="listen.html">Listen to the samples</a>
+  {% else %}
+  <a class="btn" href="{{ url_for('history') }}">Listen to past renders</a>
+  {% endif %}
+  <a class="btn" href="{{ url_for('synth') }}">Open the synthesizer</a>
   <a class="btn secondary" href="https://github.com/enonymous1/voice-generator">Get the code</a>
 </div>
+
+<h2>Start here</h2>
+<ol>
+  <li><strong><a href="{{ url_for('setup') }}">Setup</a></strong> — record
+    or upload a short clip of the voice (~10 s), reading the script on
+    the page.</li>
+  <li><strong><a href="{{ url_for('synth') }}">Synthesize</a></strong> —
+    paste text, pick a backend and the reference clip, render.</li>
+  <li><strong><a href="{{ url_for('history') }}">History</a></strong> —
+    listen back to renders, each with the manifest that records
+    exactly how it was made.</li>
+  <li><strong><a href="{{ url_for('research') }}">Research</a></strong> —
+    why these four backends, and what was ruled out.</li>
+</ol>
 
 <h2>How it works</h2>
 <ol>
@@ -63,7 +82,7 @@ Fish Speech (non-commercial weights), IndexTTS-2 (custom bilibili
 license), F5-TTS / Spark-TTS (non-commercial weights), and
 “Breeze TTS 2” (no FOSS release found — only a proprietary hosted API).
 The full survey of alternatives, and why they were ruled in or out,
-is on the <a href="research.html">research page</a>.</p>
+is on the <a href="{{ url_for('research') }}">research page</a>.</p>
 
 <h2>Try it</h2>
 <pre><code>py -3.11 -m venv .venv-core
@@ -77,9 +96,16 @@ in the repo; the full reference is the
 <a href="https://github.com/enonymous1/voice-generator/blob/main/README.md">README</a>.</p>
 
 <h2>Listen first</h2>
-<p>Every backend below rendered the <em>same</em> script from the
-<em>same</em> reference clip. The comparison is your ears, not a score.
-<a href="listen.html">Hear the four backends side by side →</a></p>
+<p>The comparison is your ears, not a score.
+{% if config.get("FROZEN") %}
+Every backend below rendered the <em>same</em> script from the
+<em>same</em> reference clip.
+<a href="listen.html">Hear the four backends side by side →</a>
+{% else %}
+Every render keeps its WAV and manifest, so you can hear what each
+backend actually did with your voice.
+<a href="{{ url_for('history') }}">Hear past renders →</a>
+{% endif %}</p>
 
 <h2>What’s next</h2>
 <p>Stage 2 — the audio-driven talking head that turns this WAV into a

@@ -157,7 +157,7 @@ def create_app(config: WebConfig | None = None) -> Flask:
 
     @app.get("/")
     def index():
-        return redirect(url_for("synth"))
+        return render_template("landing.html")
 
     @app.get("/script")
     def script():

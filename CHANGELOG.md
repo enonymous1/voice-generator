@@ -5,6 +5,22 @@ All notable changes to voice-generator, following
 
 ## [Unreleased]
 
+## [0.5.14] — 2026-11-12 (a real landing page)
+
+### Added
+- The web UI now lands on a real home page instead of redirecting to
+  Synthesize: what the tool is, a Start-here path (Setup → Synthesize
+  → History → Research), how it works, the four-engines table with
+  licenses and VRAM, which backend to start with, the CLI quickstart,
+  and what's next (Stage 2). It's the same template the freeze
+  already used for the public site's index, now served live at `/`
+  with live links (the frozen copy keeps its listen-page links via a
+  template conditional), and the nav brand links home to it.
+
+### Changed
+- `/` renders the landing page (200) instead of redirecting to
+  `/synth` (302).
+
 ## [0.5.13] — 2026-11-12 (preview a trim before saving it)
 
 ### Added
