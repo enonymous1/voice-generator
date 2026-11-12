@@ -480,19 +480,20 @@ Four pages plus a home page:
   template the freeze uses for the public site's index.
 - **Setup** — shows the recording script to read aloud. Pick one of
   two scripts (emotional-range paragraph, Harvard sentences), each with
-  its "why this works" notes. Record in the browser from its own card
-  (a large microphone button to start, a square stop button that starts
-  greyed out and turns white once recording) or upload a file from its
-  own card (drag-and-drop zone or the file picker); the two cards sit
-  side by side, record 1 part to upload's 3, at the same height, with
-  the record buttons centred. A non-WAV recording is
-  converted with ffmpeg to 16 kHz mono PCM-16, validated the same way
-  `check-ref` validates it, and saved as `refs/<name>.wav` with the
-  script text stored as `refs/<name>.txt`. An existing name is refused,
-  never silently overwritten. Saved references are clickable: a row
-  opens a player for the clip and its transcript, so the words can be
-  checked against the audio — and the row holds a trim form that saves
-  a slice (start/end, edited transcript) as a new reference, leaving
+  its "why this works" notes. One **Add a reference** card holds both
+  ways in: record in the browser (a large microphone button to start,
+  a square stop button that starts greyed out and turns white once
+  recording) or upload a file (drag-and-drop zone or the file picker),
+  under a single shared Reference name; the two sit side by side,
+  record 1 part to upload's 3, with the record buttons centred. A
+  non-WAV recording is converted with ffmpeg to 16 kHz mono PCM-16,
+  validated the same way `check-ref` validates it, and saved as
+  `refs/<name>.wav` with the script text stored as `refs/<name>.txt`.
+  An existing name is refused, never silently overwritten. Saved
+  references are clickable: a row opens a player for the clip and its
+  transcript, so the words can be checked against the audio — and the
+  row holds a trim form that saves a slice (start/end, edited
+  transcript) as a new reference, leaving
   the original untouched; a Preview trim button plays just the slice
   first, so the transcript can be written to match what the trimmed
   copy actually says.
@@ -787,5 +788,8 @@ not.
     instead of only flashing at the top of the page; the record flow,
     which was silently confirming nothing after its reload, now
     flashes the same saved message as an upload.
-24. v0.6.0 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
+24. **v0.5.17** — record and upload are one Add-a-reference card with
+    a single shared Reference name, instead of two cards with two
+    name fields.
+25. v0.6.0 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
     MuseTalk): WAV + manifest in, lip-synced MP4 out.

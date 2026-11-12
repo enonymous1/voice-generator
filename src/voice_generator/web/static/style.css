@@ -111,20 +111,25 @@ pre code { background: none; padding: 0; }
 
 /* Setup page: record (1 part) beside upload (3 parts); stack on
    narrow screens. */
-.setup-grid {
+/* Add-a-reference card: record (1 part) and upload (3 parts) sit side
+   by side inside one card, under one shared Reference name field. The
+   name input lives outside the upload form and joins it via the form
+   attribute; the record flow reads the same input. */
+.addref-grid {
   display: grid;
   grid-template-columns: 1fr 3fr;
   gap: 1rem;
   align-items: stretch;
+  margin-top: 1rem;
 }
 
-.setup-grid .card {
+/* The record column is the short one — its controls sit centred in the
+   column's full height instead of floating at the top. */
+.addref-rec {
   display: flex;
   flex-direction: column;
 }
 
-/* The record card is the short one — its controls sit centred in the
-   card's full height instead of floating at the top. */
 #rec-ui {
   flex: 1;
   display: flex;
@@ -137,7 +142,7 @@ pre code { background: none; padding: 0; }
 #rec-ui[hidden] { display: none; }
 
 @media (max-width: 700px) {
-  .setup-grid { grid-template-columns: 1fr; }
+  .addref-grid { grid-template-columns: 1fr; }
 }
 
 /* Saved references: the name is a toggle that opens a detail row

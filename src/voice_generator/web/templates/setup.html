@@ -47,9 +47,19 @@ automatically.</p>
   </div>
 </section>
 
-<div class="setup-grid">
-<section class="card" aria-label="Record in the browser">
-  <h2>Record in the browser</h2>
+<section class="card" aria-label="Add a reference">
+  <h2>Add a reference</h2>
+  <p class="muted">Record a clip in the browser, or upload a file — either way it
+  becomes a reference under the name below. A WAV goes straight in;
+  anything else (e.g. a webm from a phone recorder) is converted with
+  ffmpeg to 16 kHz mono PCM-16 first. The clip is validated the same
+  way <code>voice-gen check-ref</code> validates it, and a name that
+  already exists is refused — never silently overwritten.</p>
+  <label for="ref-name">Reference name</label>
+  <input type="text" id="ref-name" name="name" form="upload-form" value="me">
+  <div class="addref-grid">
+  <div class="addref-rec">
+  <h3>Record in the browser</h3>
   <div id="rec-unsupported" class="callout warn" hidden>
     This browser cannot record audio here — use the file upload below
     instead.
@@ -72,22 +82,15 @@ automatically.</p>
     </div>
     <audio id="rec-playback" controls hidden></audio>
     <div id="rec-save" hidden>
-      <label for="rec-name">Save as reference</label>
-      <input type="text" id="rec-name" value="me">
       <button type="button" id="rec-save-btn">Save this recording</button>
       <span id="rec-status" class="muted"></span>
     </div>
   </div>
-</section>
+  </div>
 
-<section class="card" aria-label="Upload a file">
-  <h2>Or upload a file</h2>
-  <p class="muted">A WAV goes straight in. Anything else (e.g. a webm
-  from a phone recorder) is converted with ffmpeg to 16 kHz mono PCM-16
-  first. The clip is validated the same way <code>voice-gen check-ref</code>
-  validates it, and a name that already exists is refused — never silently
-  overwritten.</p>
-  <form method="post" action="{{ url_for('setup_upload') }}" enctype="multipart/form-data">
+  <div>
+  <h3>Or upload a file</h3>
+  <form id="upload-form" method="post" action="{{ url_for('setup_upload') }}" enctype="multipart/form-data">
     <input type="hidden" name="script" id="script-id" value="range">
     <div class="dropzone" id="dropzone" role="button" tabindex="0" aria-label="Drop an audio file here, or press Enter to choose one">
       <strong>Drop an audio file here</strong><br>
@@ -95,12 +98,11 @@ automatically.</p>
       <span id="dropzone-file" class="dropzone-file"></span>
     </div>
     <input type="file" id="clip" name="clip" accept="audio/*,.wav,.webm,.m4a,.mp3,.ogg" hidden>
-    <label for="name">Reference name</label>
-    <input type="text" id="name" name="name" value="me">
     <input type="submit" value="Upload and validate">
   </form>
+  </div>
+  </div>
 </section>
-</div>
 
 <h2>Saved references</h2>
 {% if refs %}
@@ -314,7 +316,7 @@ automatically.</p>
     if (!blob) return;
     var fd = new FormData();
     fd.append("clip", blob, "recording.webm");
-    fd.append("name", document.getElementById("rec-name").value);
+    fd.append("name", document.getElementById("ref-name").value);
     fd.append("script", scriptId.value);
     statusEl.textContent = "Saving…";
     fetch("{{ url_for('record_api') }}", { method: "POST", body: fd })

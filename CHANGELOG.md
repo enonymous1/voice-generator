@@ -5,6 +5,17 @@ All notable changes to voice-generator, following
 
 ## [Unreleased]
 
+## [0.5.17] — 2026-11-12 (one Add-a-reference card)
+
+### Changed
+- Record-in-the-browser and upload-a-file are one **Add a reference**
+  card now, instead of two cards with two separate name fields. One
+  shared **Reference name** sits at the top of the card: the upload
+  form takes it via the HTML `form` attribute (the input lives
+  outside the form), and the record flow reads the same input. Record
+  and upload still sit side by side inside the card, 1 part to 3,
+  with the record controls centred in their column.
+
 ## [0.5.16] — 2026-11-12 (confirmation dialog)
 
 ### Added

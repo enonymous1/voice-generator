@@ -209,11 +209,20 @@ def test_setup_page_ref_rows_expand(client, project):
     assert "The test transcript." in html
 
 
-def test_setup_page_record_upload_grid(client):
+def test_setup_page_add_reference_card(client):
     resp = client.get("/setup")
     html = resp.get_data(as_text=True)
-    # Record and upload sit side by side, record 1 part to upload's 3.
-    assert 'class="setup-grid"' in html
+    # Record and upload are one card now, side by side inside it
+    # (record 1 part to upload's 3), under a single shared name field:
+    # the upload form takes it via the form attribute, the record flow
+    # reads the same input. The two old name fields are gone.
+    assert 'class="addref-grid"' in html
+    assert 'id="ref-name"' in html
+    assert 'form="upload-form"' in html
+    assert 'id="upload-form"' in html
+    assert 'id="rec-name"' not in html
+    assert 'id="name"' not in html
+    assert 'getElementById("ref-name")' in html
     css = (
         Path(__file__).parent.parent
         / "src"
@@ -222,11 +231,11 @@ def test_setup_page_record_upload_grid(client):
         / "static"
         / "style.css"
     ).read_text(encoding="utf-8")
-    assert ".setup-grid" in css
+    assert ".addref-grid" in css
     assert "grid-template-columns: 1fr 3fr" in css
     assert "@media (max-width: 700px)" in css
-    # Both cards are the same height, and the record card's buttons sit
-    # centred in its full height instead of floating at the top.
+    # Both columns are the same height, and the record column's buttons
+    # sit centred in its full height instead of floating at the top.
     assert "align-items: stretch" in css
     assert "#rec-ui" in css
     assert "justify-content: center" in css
@@ -283,12 +292,13 @@ def test_setup_page_script_card_has_equal_height_stack(client):
     assert "visibility: hidden" in css
 
 
-def test_setup_page_record_and_upload_are_cards(client):
+def test_setup_page_record_and_upload_are_sections(client):
     resp = client.get("/setup")
     html = resp.get_data(as_text=True)
-    # Record and upload are their own cards, not bare headings.
-    assert 'aria-label="Record in the browser"' in html
-    assert 'aria-label="Upload a file"' in html
+    # Record and upload are sections of the one Add-a-reference card.
+    assert 'aria-label="Add a reference"' in html
+    assert "Record in the browser" in html
+    assert "Or upload a file" in html
     # A large mic button starts recording; the square stop button
     # starts disabled (greyed out) until recording begins.
     assert 'aria-label="Start recording"' in html
