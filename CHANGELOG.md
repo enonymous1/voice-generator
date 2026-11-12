@@ -5,6 +5,16 @@ All notable changes to voice-generator, following
 
 ## [Unreleased]
 
+## [0.5.13] — 2026-11-12 (preview a trim before saving it)
+
+### Added
+- The trim form has a **Preview trim** button: it plays just the
+  [start, end] slice through the detail row's player, so the
+  transcript can be edited to match what the trimmed copy actually
+  says instead of guessing where the cut lands. It stops at the end
+  (or when pressed again, or when the row is closed), and an invalid
+  range simply doesn't play — the server still validates on save.
+
 ## [0.5.12] — 2026-11-12 (History renders open in a dialog)
 
 ### Added

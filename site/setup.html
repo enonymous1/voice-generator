@@ -190,8 +190,9 @@ The wide road shimmered in the hot sun.</div>
         <form method="post" action="#" class="trim-form">
           <input type="hidden" name="source" value="demo">
           <p class="muted">Trim a copy — the original is untouched. The trim
-          keeps the audio between start and end; edit the transcript below
-          so it matches the trimmed words exactly.</p>
+          keeps the audio between start and end; preview the slice
+          first, then edit the transcript below so it matches the
+          trimmed words exactly.</p>
           <div class="trim-row">
             <label>Start (s)
               <input type="number" name="start" value="0" step="0.1" min="0" max="10.0">
@@ -205,6 +206,7 @@ The wide road shimmered in the hot sun.</div>
           </div>
           <label for="transcript-demo">Transcript for the trimmed copy</label>
           <textarea id="transcript-demo" name="transcript">Honestly, I never expected to find myself here at 6:45 AM, holding a cup of lukewarm coffee and staring at this screen!</textarea>
+          <button type="button" class="btn secondary trim-preview">Preview trim</button>
           <input type="submit" value="Save trimmed copy">
         </form>
         
@@ -284,6 +286,43 @@ The wide road shimmered in the hot sun.</div>
       });
       detail.hidden = !opening;
       btn.setAttribute("aria-expanded", opening ? "true" : "false");
+    });
+  });
+
+  // Trim preview: play just the [start, end] slice through the detail
+  // row's player, so the transcript can be edited to match what the
+  // trimmed copy actually says. Stops at end, or when the button is
+  // pressed again; closing the row pauses it too (see the toggle above).
+  document.querySelectorAll(".trim-form").forEach(function (form) {
+    var btn = form.querySelector(".trim-preview");
+    var audio = form.closest(".ref-detail").querySelector("audio");
+    var startInput = form.querySelector('input[name="start"]');
+    var endInput = form.querySelector('input[name="end"]');
+    var previewEnd = null;
+    function stopPreview() {
+      previewEnd = null;
+      btn.textContent = "Preview trim";
+      audio.pause();
+    }
+    audio.addEventListener("timeupdate", function () {
+      if (previewEnd !== null && audio.currentTime >= previewEnd) stopPreview();
+    });
+    audio.addEventListener("pause", function () {
+      if (previewEnd !== null) {
+        previewEnd = null;
+        btn.textContent = "Preview trim";
+      }
+    });
+    btn.addEventListener("click", function () {
+      if (previewEnd !== null) { stopPreview(); return; }
+      var start = parseFloat(startInput.value);
+      var end = parseFloat(endInput.value);
+      if (!(end > start)) return; // invalid range: the server still validates on save
+      previewEnd = end;
+      btn.textContent = "Stop preview";
+      audio.currentTime = start;
+      var playing = audio.play();
+      if (playing && playing.catch) playing.catch(function () { stopPreview(); });
     });
   });
 

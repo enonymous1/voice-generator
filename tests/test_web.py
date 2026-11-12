@@ -542,3 +542,14 @@ def test_history_empty_state_has_no_modal(client):
     resp = client.get("/history")
     assert "No renders yet" in resp.get_data(as_text=True)
     assert "render-modal" not in resp.get_data(as_text=True)
+
+
+def test_setup_trim_form_has_preview(client):
+    resp = client.get("/setup")
+    assert resp.status_code == 200
+    # Collapse whitespace first — the helper text wraps across lines.
+    html = " ".join(resp.get_data(as_text=True).split())
+    # The trim form lets you hear the slice before editing its transcript.
+    assert 'class="btn secondary trim-preview"' in html
+    assert "Preview trim" in html
+    assert "preview the slice first" in html

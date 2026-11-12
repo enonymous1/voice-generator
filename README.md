@@ -489,7 +489,9 @@ Three pages plus a reference page:
   opens a player for the clip and its transcript, so the words can be
   checked against the audio — and the row holds a trim form that saves
   a slice (start/end, edited transcript) as a new reference, leaving
-  the original untouched.
+  the original untouched; a Preview trim button plays just the slice
+  first, so the transcript can be written to match what the trimmed
+  copy actually says.
 - **Synthesize** — paste text, pick a backend and a reference clip,
   render. The transcript for a clip comes from its `.txt` file when one
   exists (Qwen3 full cloning, CosyVoice zero-shot, VoxCPM ultimate);
@@ -770,5 +772,8 @@ not.
     a Research page rendering the Markdown report.
 19. **v0.5.12** — History renders open in a dialog (player + manifest);
     without JavaScript the links open in a new tab instead.
-20. v0.6.0 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
+20. **v0.5.13** — the trim form gains a Preview trim button that plays
+    just the [start, end] slice, so the trimmed transcript can be
+    written to match what the copy actually says.
+21. v0.6.0 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
     MuseTalk): WAV + manifest in, lip-synced MP4 out.
