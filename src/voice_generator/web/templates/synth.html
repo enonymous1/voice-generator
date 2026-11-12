@@ -28,8 +28,17 @@ from <code>refs/&lt;name&gt;.txt</code> when the Setup page stored one.</p>
     <option value="{{ b }}" {% if b == default_backend %}selected{% endif %}>{{ b }}</option>
     {% endfor %}
   </select>
+  <p class="muted field-hint" id="mock-hint" hidden>Mock renders a 220 Hz
+  test tone, not speech — its length follows the text (about 1 second per
+  14 characters). It only checks the plumbing: chunking, WAV writing and
+  the manifest. Pick a real backend and a reference clip for an actual
+  voice.</p>
 
   <label for="ref">Reference clip</label>
+  <p class="muted field-hint">The voice the backends clone from. Record or
+  upload a clip on the <a href="{{ url_for('setup') }}">Setup page</a>
+  first if you haven't — a reference is required for every real backend.
+  Only the mock backend renders without one.</p>
   <select id="ref" name="ref">
     <option value="">— none (mock backend only) —</option>
     {% for r in refs %}
@@ -89,6 +98,8 @@ from <code>refs/&lt;name&gt;.txt</code> when the Setup page stored one.</p>
       var el = document.getElementById("adv-" + b);
       if (el) el.hidden = backend.value !== b;
     });
+    var mockHint = document.getElementById("mock-hint");
+    if (mockHint) mockHint.hidden = backend.value !== "mock";
   }
   backend.addEventListener("change", showAdv);
   showAdv();

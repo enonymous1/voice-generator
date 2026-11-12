@@ -77,6 +77,22 @@ def test_synth_page_offers_range_script_fill(client):
     assert "Use the recording script" not in html
 
 
+def test_synth_page_explains_ref_and_mock(client):
+    resp = client.get("/synth")
+    # The template wraps the hints across lines, so collapse whitespace
+    # before matching the sentences.
+    text = " ".join(resp.get_data(as_text=True).split())
+    # The reference-clip field explains its purpose and links to Setup.
+    assert "The voice the backends clone from" in text
+    assert 'href="/setup"' in text
+    assert "Only the mock backend renders without one" in text
+    # The mock note (a 220 Hz test tone, not speech) is on the page,
+    # shown only when mock is the chosen backend.
+    assert "Mock renders a 220 Hz test tone, not speech" in text
+    assert "about 1 second per 14 characters" in text
+    assert 'id="mock-hint"' in text
+
+
 def test_synth_page_explains_max_chars(client):
     resp = client.get("/synth")
     # The template wraps the hint across lines, so collapse whitespace
@@ -131,6 +147,11 @@ def test_setup_page_record_upload_grid(client):
     assert ".setup-grid" in css
     assert "grid-template-columns: 1fr 3fr" in css
     assert "@media (max-width: 700px)" in css
+    # Both cards are the same height, and the record card's buttons sit
+    # centred in its full height instead of floating at the top.
+    assert "align-items: stretch" in css
+    assert "#rec-ui" in css
+    assert "justify-content: center" in css
 
 
 def test_setup_page_shows_default_script(client):

@@ -115,8 +115,26 @@ pre code { background: none; padding: 0; }
   display: grid;
   grid-template-columns: 1fr 3fr;
   gap: 1rem;
-  align-items: start;
+  align-items: stretch;
 }
+
+.setup-grid .card {
+  display: flex;
+  flex-direction: column;
+}
+
+/* The record card is the short one — its controls sit centred in the
+   card's full height instead of floating at the top. */
+#rec-ui {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* An ID rule above beats the browser's [hidden] style, so re-assert it
+   (same reason the script blocks need their own hidden rule). */
+#rec-ui[hidden] { display: none; }
 
 @media (max-width: 700px) {
   .setup-grid { grid-template-columns: 1fr; }

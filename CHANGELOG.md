@@ -5,7 +5,20 @@ All notable changes to voice-generator, following
 
 ## [Unreleased]
 
-## [0.5.8] — 2026-11-12 (clickable references + 1:3 setup grid)
+## [0.5.9] — 2026-11-12 (equal-height cards + synth hints)
+
+### Changed
+- The record and upload cards are the same height now (the grid
+  stretches both), and the record card's buttons sit centred in its
+  full height instead of floating at the top.
+
+### Added
+- "Reference clip" on the Synthesize page has a short explanation
+  under it: it is the voice the backends clone from, with a link to
+  the Setup page to create one, and a note that only mock renders
+  without one. Picking the mock backend shows a note of its own:
+  mock renders a 220 Hz test tone, not speech (about 1 second per
+  14 characters), only checking the plumbing.
 
 ### Added
 - Saved references are clickable now: clicking a name opens a detail
