@@ -94,7 +94,7 @@ def test_setup_page_lists_script_options(client):
 def test_setup_page_script_card_has_equal_height_stack(client):
     resp = client.get("/setup")
     html = resp.get_data(as_text=True)
-    # The picker and the script display sit in one card, and all three
+    # The picker and the script display sit in one card, and both
     # scripts render inside the stack — so the tallest defines the
     # card's height and swapping scripts never moves the page below.
     assert 'class="card"' in html
@@ -114,6 +114,27 @@ def test_setup_page_script_card_has_equal_height_stack(client):
     # Hidden blocks stay in layout (visibility, not display).
     assert ".script-block[hidden]" in css
     assert "visibility: hidden" in css
+
+
+def test_setup_page_record_and_upload_are_cards(client):
+    resp = client.get("/setup")
+    html = resp.get_data(as_text=True)
+    # Record and upload are their own cards, not bare headings.
+    assert 'aria-label="Record in the browser"' in html
+    assert 'aria-label="Upload a file"' in html
+    # A large mic button starts recording; the square stop button
+    # starts disabled (greyed out) until recording begins.
+    assert 'aria-label="Start recording"' in html
+    assert 'aria-label="Stop recording"' in html
+    # The stop button's own tag carries `disabled`; the mic button's does not.
+    stop_tag = html.split('id="rec-stop"')[1].split(">", 1)[0]
+    assert "disabled" in stop_tag
+    start_tag = html.split('id="rec-start"')[1].split(">", 1)[0]
+    assert "disabled" not in start_tag
+    # The upload offers drag-and-drop as well as the file picker.
+    assert 'id="dropzone"' in html
+    assert "Drop an audio file here" in html
+    assert "or click to choose a file" in html
 
 
 def test_script_endpoint_with_id(client):

@@ -47,40 +47,58 @@ automatically.</p>
   </div>
 </section>
 
-<h2>Record in the browser</h2>
-<div id="rec-unsupported" class="callout warn" hidden>
-  This browser cannot record audio here — use the file upload below
-  instead.
-</div>
-<div id="rec-ui">
-  <div class="btn-row">
-    <button type="button" id="rec-start">Start recording</button>
-    <button type="button" id="rec-stop" disabled>Stop</button>
-    <span id="rec-timer" class="muted"></span>
+<section class="card" aria-label="Record in the browser">
+  <h2>Record in the browser</h2>
+  <div id="rec-unsupported" class="callout warn" hidden>
+    This browser cannot record audio here — use the file upload below
+    instead.
   </div>
-  <audio id="rec-playback" controls hidden></audio>
-  <div id="rec-save" hidden>
-    <label for="rec-name">Save as reference</label>
-    <input type="text" id="rec-name" value="me">
-    <button type="button" id="rec-save-btn">Save this recording</button>
-    <span id="rec-status" class="muted"></span>
+  <div id="rec-ui">
+    <div class="rec-controls">
+      <div class="rec-control">
+        <button type="button" id="rec-start" class="rec-btn mic" aria-label="Start recording">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 0-.9.36-.98.85C16.52 14.2 14.47 16 12 16s-4.52-1.8-4.93-4.15c-.08-.49-.49-.85-.98-.85-.61 0-1.09.54-1 1.14.49 3 2.89 5.35 5.91 5.78V20c0 .55.45 1 1 1s1-.45 1-1v-2.08c3.02-.43 5.42-2.78 5.91-5.78.08-.6-.39-1.14-1-1.14z"/></svg>
+        </button>
+        <span class="rec-label">Record</span>
+      </div>
+      <div class="rec-control">
+        <button type="button" id="rec-stop" class="rec-btn stop" aria-label="Stop recording" disabled>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1.5" fill="currentColor"/></svg>
+        </button>
+        <span class="rec-label">Stop</span>
+      </div>
+      <span id="rec-timer" class="muted"></span>
+    </div>
+    <audio id="rec-playback" controls hidden></audio>
+    <div id="rec-save" hidden>
+      <label for="rec-name">Save as reference</label>
+      <input type="text" id="rec-name" value="me">
+      <button type="button" id="rec-save-btn">Save this recording</button>
+      <span id="rec-status" class="muted"></span>
+    </div>
   </div>
-</div>
+</section>
 
-<h2>Or upload a file</h2>
-<p class="muted">A WAV goes straight in. Anything else (e.g. a webm
-from a phone recorder) is converted with ffmpeg to 16 kHz mono PCM-16
-first. The clip is validated the same way <code>voice-gen check-ref</code>
-validates it, and a name that already exists is refused — never silently
-overwritten.</p>
-<form method="post" action="{{ url_for('setup_upload') }}" enctype="multipart/form-data">
-  <input type="hidden" name="script" id="script-id" value="range">
-  <label for="clip">Audio file</label>
-  <input type="file" id="clip" name="clip" accept="audio/*,.wav,.webm,.m4a,.mp3,.ogg">
-  <label for="name">Reference name</label>
-  <input type="text" id="name" name="name" value="me">
-  <input type="submit" value="Upload and validate">
-</form>
+<section class="card" aria-label="Upload a file">
+  <h2>Or upload a file</h2>
+  <p class="muted">A WAV goes straight in. Anything else (e.g. a webm
+  from a phone recorder) is converted with ffmpeg to 16 kHz mono PCM-16
+  first. The clip is validated the same way <code>voice-gen check-ref</code>
+  validates it, and a name that already exists is refused — never silently
+  overwritten.</p>
+  <form method="post" action="{{ url_for('setup_upload') }}" enctype="multipart/form-data">
+    <input type="hidden" name="script" id="script-id" value="range">
+    <div class="dropzone" id="dropzone" role="button" tabindex="0" aria-label="Drop an audio file here, or press Enter to choose one">
+      <strong>Drop an audio file here</strong><br>
+      <span class="muted">or click to choose a file</span><br>
+      <span id="dropzone-file" class="dropzone-file"></span>
+    </div>
+    <input type="file" id="clip" name="clip" accept="audio/*,.wav,.webm,.m4a,.mp3,.ogg" hidden>
+    <label for="name">Reference name</label>
+    <input type="text" id="name" name="name" value="me">
+    <input type="submit" value="Upload and validate">
+  </form>
+</section>
 
 <h2>Saved references</h2>
 {% if refs %}
@@ -119,6 +137,44 @@ overwritten.</p>
   var supported = !!(navigator.mediaDevices && window.MediaRecorder);
   document.getElementById("rec-unsupported").hidden = supported;
   document.getElementById("rec-ui").hidden = !supported;
+
+  // Drag-and-drop upload: the drop zone is the file picker (click or
+  // Enter to browse), and a dropped file lands in the form's file
+  // input. Runs whether or not this browser can record.
+  var dropzone = document.getElementById("dropzone");
+  var fileInput = document.getElementById("clip");
+  var fileNameEl = document.getElementById("dropzone-file");
+  function showFile(file) {
+    fileNameEl.textContent = file
+      ? file.name + " (" + Math.round(file.size / 1024) + " KB)"
+      : "";
+  }
+  dropzone.addEventListener("click", function () { fileInput.click(); });
+  dropzone.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInput.click(); }
+  });
+  ["dragenter", "dragover"].forEach(function (ev) {
+    dropzone.addEventListener(ev, function (e) {
+      e.preventDefault();
+      dropzone.classList.add("dragover");
+    });
+  });
+  ["dragleave", "drop"].forEach(function (ev) {
+    dropzone.addEventListener(ev, function (e) {
+      e.preventDefault();
+      dropzone.classList.remove("dragover");
+    });
+  });
+  dropzone.addEventListener("drop", function (e) {
+    var file = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (!file) return;
+    var dt = new DataTransfer();
+    dt.items.add(file);
+    fileInput.files = dt.files;
+    showFile(file);
+  });
+  fileInput.addEventListener("change", function () { showFile(fileInput.files[0]); });
+
   if (!supported) return;
 
   var startBtn = document.getElementById("rec-start");
@@ -148,6 +204,7 @@ overwritten.</p>
         timerEl.textContent = Math.floor((Date.now() - startedAt) / 1000) + "s";
       }, 250);
       startBtn.disabled = true;
+      startBtn.classList.add("recording");
       stopBtn.disabled = false;
     }).catch(function (err) {
       statusEl.textContent = "Microphone error: " + err.message;
@@ -158,6 +215,7 @@ overwritten.</p>
     if (rec && rec.state !== "inactive") rec.stop();
     clearInterval(timer);
     startBtn.disabled = false;
+    startBtn.classList.remove("recording");
     stopBtn.disabled = true;
   });
 

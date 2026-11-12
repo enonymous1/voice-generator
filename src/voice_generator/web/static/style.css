@@ -21,6 +21,9 @@
   --err-bg: #fce8e6;
   --err-ink: #a50e0e;
   --btn-bg: #1a5fb4;
+  --rec-bg: #c5221f;
+  --stop-on-bg: #ffffff;
+  --stop-on-ink: #1a1a1a;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -41,6 +44,9 @@
     --err-bg: #2d1414;
     --err-ink: #f28b82;
     --btn-bg: #2b6cb0;
+    --rec-bg: #d93025;
+    --stop-on-bg: #e8e8e8;
+    --stop-on-ink: #1a1a1a;
   }
 }
 
@@ -208,7 +214,7 @@ audio { width: 100%; margin-top: 0.5rem; }
 
 .card h2 { margin-top: 0; }
 
-/* Equal-height script display: all three script blocks share one grid
+/* Equal-height script display: both script blocks share one grid
    cell, so the card is as tall as the tallest script and swapping
    scripts never moves the rest of the page. Hidden blocks stay in
    layout (visibility, not display) so they still define the height —
@@ -217,6 +223,97 @@ audio { width: 100%; margin-top: 0.5rem; }
 .script-stack { display: grid; }
 .script-stack > .script-block { grid-area: 1 / 1; }
 .script-block[hidden] { display: block; visibility: hidden; }
+
+/* Record controls: a big round mic button to start, a square stop
+   button that starts greyed out and turns white once recording. */
+.rec-controls {
+  display: flex;
+  gap: 1.25rem;
+  align-items: flex-start;
+  margin: 1rem 0;
+}
+
+.rec-controls #rec-timer { align-self: center; }
+
+.rec-control {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.rec-label { font-size: 0.85rem; color: var(--muted); }
+
+.rec-btn {
+  width: 72px;
+  height: 72px;
+  border: none;
+  padding: 0;
+  margin-top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: var(--btn-bg);
+  color: #fff;
+}
+
+.rec-btn.mic { border-radius: 50%; }
+.rec-btn.mic svg { width: 36px; height: 36px; }
+
+.rec-btn.mic.recording {
+  background: var(--rec-bg);
+  animation: rec-pulse 1.5s infinite;
+}
+
+.rec-btn.stop {
+  border-radius: 14px;
+  background: var(--th-bg);
+  color: var(--muted);
+  opacity: 0.55;
+  cursor: default;
+}
+
+.rec-btn.stop svg { width: 30px; height: 30px; }
+
+.rec-btn.stop:enabled {
+  background: var(--stop-on-bg);
+  color: var(--stop-on-ink);
+  opacity: 1;
+  cursor: pointer;
+}
+
+@keyframes rec-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(197, 34, 31, 0.45); }
+  70% { box-shadow: 0 0 0 14px rgba(197, 34, 31, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(197, 34, 31, 0); }
+}
+
+/* Upload drop zone: dashed target that is also the file picker. */
+.dropzone {
+  border: 2px dashed var(--line);
+  border-radius: 8px;
+  padding: 1.5rem 1rem;
+  text-align: center;
+  color: var(--muted);
+  cursor: pointer;
+  margin: 0.75rem 0;
+}
+
+.dropzone.dragover {
+  border-color: var(--accent);
+  background: var(--callout-bg);
+  color: var(--ink);
+}
+
+.dropzone strong { color: var(--ink); }
+
+.dropzone-file {
+  display: block;
+  margin-top: 0.5rem;
+  color: var(--ink);
+  font-weight: 600;
+}
 
 footer {
   border-top: 1px solid var(--line);

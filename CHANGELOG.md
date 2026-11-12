@@ -5,7 +5,16 @@ All notable changes to voice-generator, following
 
 ## [Unreleased]
 
-## [0.5.3] — 2026-11-12 (drop the intro script)
+## [0.5.4] — 2026-11-12 (record + upload cards)
+
+### Changed
+- Record in the browser and upload are their own cards now. The
+  record card has a large round microphone button to start recording
+  and a square stop button that starts greyed out and turns white
+  once recording begins (the mic turns red and pulses while it
+  records). The upload card offers a drag-and-drop zone as well as
+  the file picker (click the zone, or Enter while it is focused);
+  the chosen file's name shows in the zone before uploading.
 
 ### Changed
 - The Setup page offers two recording scripts now, not three: the

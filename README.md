@@ -476,8 +476,10 @@ Three pages:
 
 - **Setup** — shows the recording script to read aloud. Pick one of
   two scripts (emotional-range paragraph, Harvard sentences), each with
-  its "why this works" notes. Record in
-  the browser (MediaRecorder) or upload a file; a non-WAV recording is
+  its "why this works" notes. Record in the browser from its own card
+  (a large microphone button to start, a square stop button that starts
+  greyed out and turns white once recording) or upload a file from its
+  own card (drag-and-drop zone or the file picker); a non-WAV recording is
   converted with ffmpeg to 16 kHz mono PCM-16, validated the same way
   `check-ref` validates it, and saved as `refs/<name>.wav` with the
   script text stored as `refs/<name>.txt`. An existing name is refused,
@@ -721,5 +723,9 @@ not.
 10. **v0.5.3** — the project introduction drops out of the Setup
     choices; the emotional-range paragraph is the default, Harvard
     sentences the other choice.
-11. v0.6.0 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
+11. **v0.5.4** — record and upload are their own cards: a large
+    microphone button + a square stop button that starts greyed out
+    and turns white while recording, and a drag-and-drop upload zone
+    alongside the file picker.
+12. v0.6.0 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
     MuseTalk): WAV + manifest in, lip-synced MP4 out.
