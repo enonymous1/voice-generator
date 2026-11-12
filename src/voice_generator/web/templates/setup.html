@@ -47,6 +47,7 @@ automatically.</p>
   </div>
 </section>
 
+<div class="setup-grid">
 <section class="card" aria-label="Record in the browser">
   <h2>Record in the browser</h2>
   <div id="rec-unsupported" class="callout warn" hidden>
@@ -99,6 +100,7 @@ automatically.</p>
     <input type="submit" value="Upload and validate">
   </form>
 </section>
+</div>
 
 <h2>Saved references</h2>
 {% if refs %}
@@ -108,11 +110,21 @@ automatically.</p>
   <tbody>
     {% for r in refs %}
     <tr>
-      <td>{{ r.name }}</td>
+      <td><button type="button" class="ref-toggle" aria-expanded="false">{{ r.name }}</button></td>
       <td>{% if r.duration_s is defined %}{{ r.duration_s }}s{% else %}—{% endif %}</td>
       <td>{% if r.sample_rate is defined %}{{ r.sample_rate }} Hz{% else %}—{% endif %}</td>
       <td>{% if r.channels is defined %}{{ r.channels }}{% else %}—{% endif %}</td>
       <td>{% if r.has_transcript %}yes{% else %}no{% endif %}</td>
+    </tr>
+    <tr class="ref-detail" hidden>
+      <td colspan="5">
+        <audio controls preload="metadata" src="{{ url_for('ref_file', filename=r.wav) }}"></audio>
+        {% if r.transcript is defined %}
+        <p class="ref-transcript">{{ r.transcript }}</p>
+        {% else %}
+        <p class="muted">No transcript saved for this reference.</p>
+        {% endif %}
+      </td>
     </tr>
     {% endfor %}
   </tbody>
@@ -174,6 +186,24 @@ automatically.</p>
     showFile(file);
   });
   fileInput.addEventListener("change", function () { showFile(fileInput.files[0]); });
+
+  // Saved references: clicking a name opens its detail row (player +
+  // transcript) and closes any other open one, stopping its audio.
+  document.querySelectorAll(".ref-toggle").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var detail = btn.closest("tr").nextElementSibling;
+      var opening = detail.hidden;
+      document.querySelectorAll(".ref-detail").forEach(function (row) {
+        row.hidden = true;
+        row.querySelectorAll("audio").forEach(function (a) { a.pause(); });
+      });
+      document.querySelectorAll(".ref-toggle").forEach(function (b) {
+        b.setAttribute("aria-expanded", "false");
+      });
+      detail.hidden = !opening;
+      btn.setAttribute("aria-expanded", opening ? "true" : "false");
+    });
+  });
 
   if (!supported) return;
 

@@ -109,6 +109,39 @@ pre {
 
 pre code { background: none; padding: 0; }
 
+/* Setup page: record (1 part) beside upload (3 parts); stack on
+   narrow screens. */
+.setup-grid {
+  display: grid;
+  grid-template-columns: 1fr 3fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+@media (max-width: 700px) {
+  .setup-grid { grid-template-columns: 1fr; }
+}
+
+/* Saved references: the name is a toggle that opens a detail row
+   with a player and the transcript. */
+.ref-toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: var(--accent);
+  cursor: pointer;
+  text-align: left;
+}
+
+.ref-toggle::before { content: "▸ "; }
+.ref-toggle[aria-expanded="true"]::before { content: "▾ "; }
+
+.ref-detail audio { width: 100%; margin: 0.5rem 0; }
+
+.ref-transcript { margin: 0.5rem 0 0; white-space: pre-wrap; }
+
 /* A short explanation under a form label. */
 .field-hint {
   margin: 0.25rem 0 0.5rem;

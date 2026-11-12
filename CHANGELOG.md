@@ -5,7 +5,19 @@ All notable changes to voice-generator, following
 
 ## [Unreleased]
 
-## [0.5.7] — 2026-11-12 (max-chars hint)
+## [0.5.8] — 2026-11-12 (clickable references + 1:3 setup grid)
+
+### Added
+- Saved references are clickable now: clicking a name opens a detail
+  row under it with an audio player for the clip and its transcript,
+  so the words can be checked against the audio. Opening one row
+  closes (and stops) any other. New `/refs/<name>.wav|txt` route,
+  same path-traversal guard as the output downloads.
+
+### Changed
+- Record in the browser and upload sit side by side now, record 1
+  part to upload's 3 (record is just the two buttons; upload gets the
+  room). They stack on narrow screens.
 
 ### Added
 - "Max chars per chunk" on the Synthesize page has a short

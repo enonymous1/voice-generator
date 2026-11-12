@@ -89,6 +89,50 @@ def test_synth_page_explains_max_chars(client):
     assert "300 is the default" in text
 
 
+def test_ref_file_serves_wav_and_txt(client, project):
+    (project / "refs" / "me.txt").write_text("The test transcript.", encoding="utf-8")
+    resp = client.get("/refs/me.wav")
+    assert resp.status_code == 200
+    assert resp.data[:4] == b"RIFF"
+    resp = client.get("/refs/me.txt")
+    assert resp.status_code == 200
+    assert "The test transcript." in resp.get_data(as_text=True)
+    # Traversal, wrong suffix, and missing files are all 404s.
+    assert client.get("/refs/../recording-script.txt").status_code == 404
+    assert client.get("/refs/me.mp3").status_code == 404
+    assert client.get("/refs/nope.wav").status_code == 404
+
+
+def test_setup_page_ref_rows_expand(client, project):
+    (project / "refs" / "me.txt").write_text("The test transcript.", encoding="utf-8")
+    resp = client.get("/setup")
+    html = resp.get_data(as_text=True)
+    # The name is a toggle; its detail row holds a player for the clip
+    # and the transcript, so the words can be checked against the audio.
+    assert 'class="ref-toggle"' in html
+    assert 'class="ref-detail"' in html
+    assert 'src="/refs/me.wav"' in html
+    assert "The test transcript." in html
+
+
+def test_setup_page_record_upload_grid(client):
+    resp = client.get("/setup")
+    html = resp.get_data(as_text=True)
+    # Record and upload sit side by side, record 1 part to upload's 3.
+    assert 'class="setup-grid"' in html
+    css = (
+        Path(__file__).parent.parent
+        / "src"
+        / "voice_generator"
+        / "web"
+        / "static"
+        / "style.css"
+    ).read_text(encoding="utf-8")
+    assert ".setup-grid" in css
+    assert "grid-template-columns: 1fr 3fr" in css
+    assert "@media (max-width: 700px)" in css
+
+
 def test_setup_page_shows_default_script(client):
     resp = client.get("/setup")
     assert resp.status_code == 200

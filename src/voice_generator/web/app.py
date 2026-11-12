@@ -91,6 +91,11 @@ class WebConfig:
                 entry["error"] = str(exc)
             txt = self.refs_dir / f"{wav.stem}.txt"
             entry["has_transcript"] = txt.is_file()
+            if txt.is_file():
+                try:
+                    entry["transcript"] = txt.read_text(encoding="utf-8")
+                except OSError:
+                    pass  # transcript unreadable: show the row without it
             refs.append(entry)
         return refs
 
@@ -342,6 +347,17 @@ def create_app(config: WebConfig | None = None) -> Flask:
         if Path(filename).suffix.lower() not in (".wav", ".json"):
             abort(404)
         base = cfg.output_dir.resolve()
+        target = (base / filename).resolve()
+        if not target.is_relative_to(base) or not target.is_file():
+            abort(404)
+        return send_file(target)
+
+    @app.get("/refs/<path:filename>")
+    def ref_file(filename: str):
+        """Serve a reference WAV or transcript from the refs directory only."""
+        if Path(filename).suffix.lower() not in (".wav", ".txt"):
+            abort(404)
+        base = cfg.refs_dir.resolve()
         target = (base / filename).resolve()
         if not target.is_relative_to(base) or not target.is_file():
             abort(404)

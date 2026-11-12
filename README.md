@@ -479,11 +479,14 @@ Three pages:
   its "why this works" notes. Record in the browser from its own card
   (a large microphone button to start, a square stop button that starts
   greyed out and turns white once recording) or upload a file from its
-  own card (drag-and-drop zone or the file picker); a non-WAV recording is
+  own card (drag-and-drop zone or the file picker); the two cards sit
+  side by side, record 1 part to upload's 3. A non-WAV recording is
   converted with ffmpeg to 16 kHz mono PCM-16, validated the same way
   `check-ref` validates it, and saved as `refs/<name>.wav` with the
   script text stored as `refs/<name>.txt`. An existing name is refused,
-  never silently overwritten.
+  never silently overwritten. Saved references are clickable: a row
+  opens a player for the clip and its transcript, so the words can be
+  checked against the audio.
 - **Synthesize** — paste text, pick a backend and a reference clip,
   render. The transcript for a clip comes from its `.txt` file when one
   exists (Qwen3 full cloning, CosyVoice zero-shot, VoxCPM ultimate);
@@ -737,5 +740,8 @@ not.
     it on the Synthesize page (smaller chunks = less memory per
     render but more joins; larger chunks = smoother flow but a
     bigger job).
-15. v0.6.0 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
+15. **v0.5.8** — saved references are clickable (player + transcript
+    in an expanding row), and record/upload sit side by side, record
+    1 part to upload's 3.
+16. v0.6.0 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
     MuseTalk): WAV + manifest in, lip-synced MP4 out.
