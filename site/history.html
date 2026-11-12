@@ -34,7 +34,9 @@
 <h1>History</h1>
 <p class="muted">Past renders from the output directory, newest first.
 Each row is a WAV plus the manifest that records exactly how it was
-made — the same provenance the CLI writes.</p>
+made — the same provenance the CLI writes. Click a render to open it
+in a dialog (player + manifest); without JavaScript the links open in
+a new tab instead, so this page stays put.</p>
 
 
 <div class="table-wrap">
@@ -43,24 +45,81 @@ made — the same provenance the CLI writes.</p>
   <tbody>
     
     <tr>
-      <td><a href="outputs/demo_range.wav">demo_range.wav</a></td>
+      <td><a href="outputs/demo_range.wav" target="_blank" rel="noopener" data-render data-wav="/outputs/demo_range.wav" data-manifest="/outputs/demo_range.manifest.json" data-manifest-name="demo_range.manifest.json" data-name="demo_range.wav" data-backend="mock" data-duration="31.357" data-rate="24000">demo_range.wav</a></td>
       <td>mock</td>
       <td>31.357s</td>
       <td>24000 Hz</td>
-      <td><a href="outputs/demo_range.manifest.json">manifest</a></td>
+      <td><a href="outputs/demo_range.manifest.json" target="_blank" rel="noopener" data-render data-wav="/outputs/demo_range.wav" data-manifest="/outputs/demo_range.manifest.json" data-manifest-name="demo_range.manifest.json" data-name="demo_range.wav" data-backend="mock" data-duration="31.357" data-rate="24000">manifest</a></td>
     </tr>
     
     <tr>
-      <td><a href="outputs/demo_hello.wav">demo_hello.wav</a></td>
+      <td><a href="outputs/demo_hello.wav" target="_blank" rel="noopener" data-render data-wav="/outputs/demo_hello.wav" data-manifest="/outputs/demo_hello.manifest.json" data-manifest-name="demo_hello.manifest.json" data-name="demo_hello.wav" data-backend="mock" data-duration="3.643" data-rate="24000">demo_hello.wav</a></td>
       <td>mock</td>
       <td>3.643s</td>
       <td>24000 Hz</td>
-      <td><a href="outputs/demo_hello.manifest.json">manifest</a></td>
+      <td><a href="outputs/demo_hello.manifest.json" target="_blank" rel="noopener" data-render data-wav="/outputs/demo_hello.wav" data-manifest="/outputs/demo_hello.manifest.json" data-manifest-name="demo_hello.manifest.json" data-name="demo_hello.wav" data-backend="mock" data-duration="3.643" data-rate="24000">manifest</a></td>
     </tr>
     
   </tbody>
 </table>
 </div>
+
+<dialog id="render-modal" class="render-modal">
+  <form method="dialog" class="modal-close-row">
+    <button class="btn secondary" value="close">Close</button>
+  </form>
+  <h2 id="modal-title"></h2>
+  <p class="muted" id="modal-meta"></p>
+  <audio id="modal-audio" controls preload="metadata"></audio>
+  <div class="modal-links">
+    <a id="modal-download-wav" href="#" download>Download WAV</a>
+    <a id="modal-download-manifest" href="#" download>Download manifest</a>
+  </div>
+  <h3>Manifest</h3>
+  <pre id="modal-manifest">Loading…</pre>
+</dialog>
+
+<script>
+(function () {
+  var dialog = document.getElementById("render-modal");
+  if (!dialog || !dialog.showModal) return; // no <dialog>: links stay new-tab
+  var title = document.getElementById("modal-title");
+  var meta = document.getElementById("modal-meta");
+  var audio = document.getElementById("modal-audio");
+  var downloadWav = document.getElementById("modal-download-wav");
+  var downloadManifest = document.getElementById("modal-download-manifest");
+  var manifestPre = document.getElementById("modal-manifest");
+
+  function openModal(link) {
+    var d = link.dataset;
+    title.textContent = d.name;
+    meta.textContent = [d.backend, d.duration ? d.duration + "s" : "",
+      d.rate ? d.rate + " Hz" : ""].filter(Boolean).join(" · ");
+    audio.src = d.wav;
+    downloadWav.href = d.wav;
+    downloadWav.setAttribute("download", d.name);
+    downloadManifest.href = d.manifest;
+    downloadManifest.setAttribute("download", d.manifestName);
+    manifestPre.textContent = "Loading…";
+    fetch(d.manifest).then(function (r) { return r.json(); }).then(function (j) {
+      manifestPre.textContent = JSON.stringify(j, null, 2);
+    }).catch(function () {
+      manifestPre.textContent = "Couldn't load the manifest — use the download link above.";
+    });
+    if (!dialog.open) dialog.showModal();
+  }
+
+  document.querySelectorAll("a[data-render]").forEach(function (a) {
+    a.addEventListener("click", function (e) { e.preventDefault(); openModal(a); });
+  });
+  // Clicking the backdrop closes; Escape already does (native <dialog>).
+  dialog.addEventListener("click", function (e) {
+    if (e.target === dialog) dialog.close();
+  });
+  // Stop the audio when the dialog closes, or it keeps playing.
+  dialog.addEventListener("close", function () { audio.pause(); });
+})();
+</script>
 
 
 </main>

@@ -86,6 +86,8 @@ def test_freeze_writes_pages_and_rewrites_links(project, tmp_path):
     # History links its render + manifest, and both are copied.
     history = (out / "history.html").read_text(encoding="utf-8")
     assert "demo.wav" in history
+    assert 'id="render-modal"' in history  # the modal ships in the frozen page
+    assert 'target="_blank"' in history  # no-JS fallback: new tab, not navigation
     assert (out / "outputs" / "demo.wav").is_file()
     assert (out / "outputs" / "demo.manifest.json").is_file()
     # The research page renders the Markdown report from docs/research.

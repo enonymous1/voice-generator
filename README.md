@@ -498,7 +498,10 @@ Three pages plus a reference page:
   shows the live CLI log, then an audio player, download, and manifest
   link.
 - **History** — past renders from `output/`, newest first, with their
-  manifests.
+  manifests. Clicking a render opens it in a dialog (player,
+  backend/duration/rate, download links, manifest pretty-printed);
+  without JavaScript the links open in a new tab instead, so the page
+  stays put.
 - **Research** — the fast-open-voice-cloning-models survey, rendered
   from the Markdown report in `docs/research/` (newest dated file),
   so the UI and the published research page always show the same text.
@@ -765,5 +768,7 @@ not.
 18. **v0.5.11** — `voice-gen freeze` renders the UI to a static site
     for Pages (with `--seed-mock` for empty projects), and the UI gains
     a Research page rendering the Markdown report.
-19. v0.6.0 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
+19. **v0.5.12** — History renders open in a dialog (player + manifest);
+    without JavaScript the links open in a new tab instead.
+20. v0.6.0 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
     MuseTalk): WAV + manifest in, lip-synced MP4 out.

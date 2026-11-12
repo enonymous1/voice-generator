@@ -329,6 +329,30 @@ audio { width: 100%; margin-top: 0.5rem; }
   margin-top: 0.5rem;
 }
 
+/* History render modal: native <dialog> with a player and the manifest.
+   The backdrop dims the page; Escape and a backdrop click close it. */
+.render-modal {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--body-bg);
+  color: var(--ink);
+  padding: 1.25rem 1.5rem;
+  max-width: min(90vw, 720px);
+  width: 100%;
+}
+
+.render-modal::backdrop { background: rgba(0, 0, 0, 0.55); }
+
+.render-modal h2 { margin-top: 0; overflow-wrap: anywhere; }
+
+.render-modal audio { width: 100%; margin: 0.5rem 0; }
+
+.render-modal pre { max-height: 320px; overflow: auto; }
+
+.modal-close-row { text-align: right; margin: 0; }
+
+.modal-links { display: flex; gap: 1rem; flex-wrap: wrap; margin: 0.5rem 0; }
+
 /* Equal-height script display: both script blocks share one grid
    cell, so the card is as tall as the tallest script and swapping
    scripts never moves the rest of the page. Hidden blocks stay in

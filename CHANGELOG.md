@@ -5,6 +5,21 @@ All notable changes to voice-generator, following
 
 ## [Unreleased]
 
+## [0.5.12] — 2026-11-12 (History renders open in a dialog)
+
+### Added
+- Clicking a render on the History page opens it in a native
+  `<dialog>` modal — audio player, backend/duration/rate, download
+  links for the WAV and manifest, and the manifest pretty-printed
+  from a fetch (with a plain message if the fetch fails). Escape and a
+  backdrop click close it, and closing pauses the audio so it can't
+  keep playing behind the page. Both the file name and the manifest
+  link open the same dialog.
+- Without JavaScript, the History links open in a new tab
+  (`target="_blank"`, `rel="noopener"`) instead of navigating away
+  from the page — the modal is progressive enhancement on top of
+  links that already work.
+
 ## [0.5.11] — 2026-11-12 (freeze the UI for Pages)
 
 ### Added

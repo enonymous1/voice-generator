@@ -20,6 +20,7 @@ import pytest
 flask = pytest.importorskip("flask")
 
 from voice_generator.audio import wav_info, write_pcm16_wav  # noqa: E402
+from voice_generator.pipeline import synthesize_script  # noqa: E402
 from voice_generator.web.app import WebConfig, create_app  # noqa: E402
 
 SCRIPT = "Hello, this is a test of my cloned voice."
@@ -510,3 +511,34 @@ def test_research_page_without_markdown_warns(project, client, monkeypatch):
     assert 'pip install -e ".[web]"' in html
     assert "<pre>" in html  # raw text still shown, but the warning says why
     assert "Some text." in html
+
+
+def test_history_render_opens_modal_or_new_tab(project, client):
+    synthesize_script(
+        text="Hello demo.",
+        reference_wav=None,
+        out_wav=project / "output" / "demo.wav",
+        backend_name="mock",
+    )
+    resp = client.get("/history")
+    assert resp.status_code == 200
+    html = resp.get_data(as_text=True)
+    # The modal itself: player + manifest, filled by JS on open.
+    assert 'id="render-modal"' in html
+    assert 'id="modal-audio"' in html
+    assert 'id="modal-manifest"' in html
+    # The file link opens the modal with JS; without JS it opens in a
+    # new tab so the History page stays put.
+    assert 'target="_blank"' in html
+    assert 'data-render' in html
+    assert 'data-wav="/outputs/demo.wav"' in html
+    assert 'data-manifest="/outputs/demo.manifest.json"' in html
+    assert 'data-manifest-name="demo.manifest.json"' in html
+    # The manifest link is the same deal, not a bare navigation.
+    assert html.count('target="_blank"') >= 2
+
+
+def test_history_empty_state_has_no_modal(client):
+    resp = client.get("/history")
+    assert "No renders yet" in resp.get_data(as_text=True)
+    assert "render-modal" not in resp.get_data(as_text=True)

@@ -4,7 +4,9 @@
 <h1>History</h1>
 <p class="muted">Past renders from the output directory, newest first.
 Each row is a WAV plus the manifest that records exactly how it was
-made — the same provenance the CLI writes.</p>
+made — the same provenance the CLI writes. Click a render to open it
+in a dialog (player + manifest); without JavaScript the links open in
+a new tab instead, so this page stays put.</p>
 
 {% if rows %}
 <div class="table-wrap">
@@ -13,16 +15,73 @@ made — the same provenance the CLI writes.</p>
   <tbody>
     {% for r in rows %}
     <tr>
-      <td><a href="{{ url_for('output_file', filename=r.name) }}">{{ r.name }}</a></td>
+      <td><a href="{{ url_for('output_file', filename=r.name) }}" target="_blank" rel="noopener" data-render data-wav="{{ url_for('output_file', filename=r.name) }}" data-manifest="{{ url_for('output_file', filename=r.manifest) }}" data-manifest-name="{{ r.manifest }}" data-name="{{ r.name }}" data-backend="{{ r.backend }}" data-duration="{{ r.duration_s if r.duration_s is not none else '' }}" data-rate="{{ r.sample_rate if r.sample_rate is not none else '' }}">{{ r.name }}</a></td>
       <td>{{ r.backend }}</td>
       <td>{% if r.duration_s is not none %}{{ r.duration_s }}s{% else %}—{% endif %}</td>
       <td>{% if r.sample_rate is not none %}{{ r.sample_rate }} Hz{% else %}—{% endif %}</td>
-      <td><a href="{{ url_for('output_file', filename=r.manifest) }}">manifest</a></td>
+      <td><a href="{{ url_for('output_file', filename=r.manifest) }}" target="_blank" rel="noopener" data-render data-wav="{{ url_for('output_file', filename=r.name) }}" data-manifest="{{ url_for('output_file', filename=r.manifest) }}" data-manifest-name="{{ r.manifest }}" data-name="{{ r.name }}" data-backend="{{ r.backend }}" data-duration="{{ r.duration_s if r.duration_s is not none else '' }}" data-rate="{{ r.sample_rate if r.sample_rate is not none else '' }}">manifest</a></td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
 </div>
+
+<dialog id="render-modal" class="render-modal">
+  <form method="dialog" class="modal-close-row">
+    <button class="btn secondary" value="close">Close</button>
+  </form>
+  <h2 id="modal-title"></h2>
+  <p class="muted" id="modal-meta"></p>
+  <audio id="modal-audio" controls preload="metadata"></audio>
+  <div class="modal-links">
+    <a id="modal-download-wav" href="#" download>Download WAV</a>
+    <a id="modal-download-manifest" href="#" download>Download manifest</a>
+  </div>
+  <h3>Manifest</h3>
+  <pre id="modal-manifest">Loading…</pre>
+</dialog>
+
+<script>
+(function () {
+  var dialog = document.getElementById("render-modal");
+  if (!dialog || !dialog.showModal) return; // no <dialog>: links stay new-tab
+  var title = document.getElementById("modal-title");
+  var meta = document.getElementById("modal-meta");
+  var audio = document.getElementById("modal-audio");
+  var downloadWav = document.getElementById("modal-download-wav");
+  var downloadManifest = document.getElementById("modal-download-manifest");
+  var manifestPre = document.getElementById("modal-manifest");
+
+  function openModal(link) {
+    var d = link.dataset;
+    title.textContent = d.name;
+    meta.textContent = [d.backend, d.duration ? d.duration + "s" : "",
+      d.rate ? d.rate + " Hz" : ""].filter(Boolean).join(" · ");
+    audio.src = d.wav;
+    downloadWav.href = d.wav;
+    downloadWav.setAttribute("download", d.name);
+    downloadManifest.href = d.manifest;
+    downloadManifest.setAttribute("download", d.manifestName);
+    manifestPre.textContent = "Loading…";
+    fetch(d.manifest).then(function (r) { return r.json(); }).then(function (j) {
+      manifestPre.textContent = JSON.stringify(j, null, 2);
+    }).catch(function () {
+      manifestPre.textContent = "Couldn't load the manifest — use the download link above.";
+    });
+    if (!dialog.open) dialog.showModal();
+  }
+
+  document.querySelectorAll("a[data-render]").forEach(function (a) {
+    a.addEventListener("click", function (e) { e.preventDefault(); openModal(a); });
+  });
+  // Clicking the backdrop closes; Escape already does (native <dialog>).
+  dialog.addEventListener("click", function (e) {
+    if (e.target === dialog) dialog.close();
+  });
+  // Stop the audio when the dialog closes, or it keeps playing.
+  dialog.addEventListener("close", function () { audio.pause(); });
+})();
+</script>
 {% else %}
 <p class="muted">No renders yet — make one on the
 <a href="{{ url_for('synth') }}">Synthesize page</a>.</p>
