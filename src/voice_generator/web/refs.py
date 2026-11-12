@@ -22,7 +22,7 @@ import tempfile
 import wave
 from pathlib import Path
 
-from voice_generator.audio import check_reference, wav_info
+from voice_generator.audio import check_reference, trim_wav, wav_info
 
 _NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
 MAX_UPLOAD_BYTES = 100 * 1024 * 1024  # 100 MB — a 60 s clip is a few MB
@@ -99,4 +99,46 @@ def save_reference(
         warnings = check_reference(candidate)
         shutil.copyfile(candidate, wav_path)
     (refs_dir / f"{name}.txt").write_text(transcript, encoding="utf-8")
+    return {"wav": wav_path, "info": info, "warnings": warnings}
+
+
+def trim_reference(
+    *,
+    source: Path,
+    name: str,
+    refs_dir: Path,
+    start_s: float,
+    end_s: float,
+    transcript: str,
+) -> dict[str, object]:
+    """Trim a saved reference to [``start_s``, ``end_s``) and save it as a new one.
+
+    The original is untouched — this always creates a copy. The transcript
+    is the caller's responsibility: it must match the trimmed words, so the
+    UI lets the user edit it. An empty transcript means no ``.txt`` is
+    written (the copy shows "no" transcript). Raises ValueError with a
+    human-readable message on any failure, and leaves no partial files
+    behind.
+    """
+    if not valid_name(name):
+        raise ValueError(
+            f"bad reference name {name!r} — use letters, digits, '-' and '_' only"
+        )
+    refs_dir.mkdir(parents=True, exist_ok=True)
+    wav_path = refs_dir / f"{name}.wav"
+    if wav_path.exists():
+        raise ValueError(
+            f"a reference named {name!r} already exists — pick another name, "
+            "or delete the old one first"
+        )
+    if not source.is_file():
+        raise ValueError(f"source reference not found: {source.name}")
+
+    with tempfile.TemporaryDirectory(prefix="voice-gen-trim-") as tmp:
+        candidate = Path(tmp) / f"{name}.wav"
+        info = trim_wav(source, candidate, start_s=start_s, end_s=end_s)
+        warnings = check_reference(candidate)
+        shutil.copyfile(candidate, wav_path)
+    if transcript.strip():
+        (refs_dir / f"{name}.txt").write_text(transcript.strip(), encoding="utf-8")
     return {"wav": wav_path, "info": info, "warnings": warnings}

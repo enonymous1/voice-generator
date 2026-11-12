@@ -40,7 +40,7 @@ from flask import (
 from voice_generator.audio import wav_info
 from voice_generator.backends import available_backends
 from voice_generator.web.jobs import JobStore, start_job
-from voice_generator.web.refs import MAX_UPLOAD_BYTES, save_reference
+from voice_generator.web.refs import MAX_UPLOAD_BYTES, save_reference, trim_reference, valid_name
 from voice_generator.web.scripts import SCRIPTS, get_script
 
 # Which backends take which extra CLI flags from the synth form.
@@ -310,6 +310,40 @@ def create_app(config: WebConfig | None = None) -> Flask:
         info = result["info"]
         flash(
             f"Saved refs/{name}.wav — {info.duration_s:.1f}s, "
+            f"{info.sample_rate} Hz, {info.channels}ch. "
+            + (" ".join(str(w) for w in result["warnings"]) or "No warnings."),
+            "ok",
+        )
+        return redirect(url_for("setup"))
+
+    @app.post("/setup/trim")
+    def setup_trim():
+        source = (request.form.get("source") or "").strip()
+        name = (request.form.get("name") or "").strip()
+        if not valid_name(source):
+            flash("Unknown source reference.", "error")
+            return redirect(url_for("setup"))
+        try:
+            start_s = float(request.form.get("start") or 0)
+            end_s = float(request.form.get("end") or 0)
+        except ValueError:
+            flash("Start and end must be numbers of seconds.", "error")
+            return redirect(url_for("setup"))
+        try:
+            result = trim_reference(
+                source=cfg.refs_dir / f"{source}.wav",
+                name=name,
+                refs_dir=cfg.refs_dir,
+                start_s=start_s,
+                end_s=end_s,
+                transcript=request.form.get("transcript") or "",
+            )
+        except ValueError as exc:
+            flash(str(exc), "error")
+            return redirect(url_for("setup"))
+        info = result["info"]
+        flash(
+            f"Saved refs/{name}.wav — trimmed {source} to {info.duration_s:.1f}s, "
             f"{info.sample_rate} Hz, {info.channels}ch. "
             + (" ".join(str(w) for w in result["warnings"]) or "No warnings."),
             "ok",

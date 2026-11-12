@@ -5,7 +5,18 @@ All notable changes to voice-generator, following
 
 ## [Unreleased]
 
-## [0.5.9] — 2026-11-12 (equal-height cards + synth hints)
+## [0.5.10] — 2026-11-12 (trim a reference to a copy)
+
+### Added
+- Saved references are editable in the expanding row: a trim form
+  (start / end in seconds, new name, editable transcript) saves the
+  slice as a new reference — the original is untouched. Defaults are
+  start 0, end 10 (or the clip length, whichever is shorter), and the
+  name `<ref>_10s` for clips over 10 s. Trimming is sample-accurate
+  stdlib slicing (`audio.trim_wav`); the clip is already 16 kHz mono
+  PCM-16 from intake, so no conversion is needed. The copy is
+  validated the same way uploads are, and an existing name is refused.
+  An empty transcript means no `.txt` is written for the copy.
 
 ### Changed
 - The record and upload cards are the same height now (the grid

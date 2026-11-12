@@ -124,6 +124,28 @@ automatically.</p>
         {% else %}
         <p class="muted">No transcript saved for this reference.</p>
         {% endif %}
+        {% if r.duration_s is defined %}
+        <form method="post" action="{{ url_for('setup_trim') }}" class="trim-form">
+          <input type="hidden" name="source" value="{{ r.name }}">
+          <p class="muted">Trim a copy — the original is untouched. The trim
+          keeps the audio between start and end; edit the transcript below
+          so it matches the trimmed words exactly.</p>
+          <div class="trim-row">
+            <label>Start (s)
+              <input type="number" name="start" value="0" step="0.1" min="0" max="{{ r.duration_s }}">
+            </label>
+            <label>End (s)
+              <input type="number" name="end" value="{{ [r.duration_s, 10] | min }}" step="0.1" min="0" max="{{ r.duration_s }}">
+            </label>
+            <label>Save as
+              <input type="text" name="name" value="{% if r.duration_s > 10 %}{{ r.name }}_10s{% else %}{{ r.name }}_trim{% endif %}">
+            </label>
+          </div>
+          <label for="transcript-{{ r.name }}">Transcript for the trimmed copy</label>
+          <textarea id="transcript-{{ r.name }}" name="transcript">{% if r.transcript is defined %}{{ r.transcript }}{% endif %}</textarea>
+          <input type="submit" value="Save trimmed copy">
+        </form>
+        {% endif %}
       </td>
     </tr>
     {% endfor %}

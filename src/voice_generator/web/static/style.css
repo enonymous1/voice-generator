@@ -160,6 +160,19 @@ pre code { background: none; padding: 0; }
 
 .ref-transcript { margin: 0.5rem 0 0; white-space: pre-wrap; }
 
+/* Trim form inside a reference detail row. */
+.trim-form { margin-top: 1rem; border-top: 1px solid var(--line); padding-top: 0.5rem; }
+
+.trim-row { display: flex; gap: 1rem; flex-wrap: wrap; align-items: end; }
+
+.trim-row label { margin-top: 0.5rem; }
+
+.trim-row input[type="number"] { width: 7rem; }
+
+.trim-row input[type="text"] { width: 12rem; }
+
+.trim-form textarea { min-height: 6rem; }
+
 /* A short explanation under a form label. */
 .field-hint {
   margin: 0.25rem 0 0.5rem;

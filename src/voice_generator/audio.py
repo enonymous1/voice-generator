@@ -106,6 +106,38 @@ def write_pcm16_wav(path: str | Path, samples: object, sample_rate: int) -> None
         w.writeframes(pcm)
 
 
+def trim_wav(src: str | Path, dst: str | Path, *, start_s: float, end_s: float) -> WavInfo:
+    """Keep the audio between ``start_s`` and ``end_s`` (seconds), sample-accurate.
+
+    Stdlib only, and the slice keeps the source's channels / width / rate,
+    so a trimmed reference needs no conversion — intake already normalized
+    it to 16 kHz mono PCM-16. Raises ValueError on a bad range.
+    """
+    p = Path(src)
+    info = wav_info(p)  # raises wave.Error (with help) on an unreadable file
+    if start_s < 0:
+        raise ValueError(f"trim start must be >= 0, got {start_s}")
+    if end_s <= start_s:
+        raise ValueError(f"trim end ({end_s}s) must be after start ({start_s}s)")
+    if end_s > info.duration_s:
+        raise ValueError(
+            f"trim end ({end_s}s) is past the end of the clip ({info.duration_s:.1f}s)"
+        )
+    start_frame = int(start_s * info.sample_rate)
+    end_frame = int(end_s * info.sample_rate)
+    dst_p = Path(dst)
+    dst_p.parent.mkdir(parents=True, exist_ok=True)
+    with wave.open(str(p), "rb") as src_w:
+        src_w.setpos(start_frame)
+        frames = src_w.readframes(end_frame - start_frame)
+    with wave.open(str(dst_p), "wb") as dst_w:
+        dst_w.setnchannels(info.channels)
+        dst_w.setsampwidth(info.sample_width)
+        dst_w.setframerate(info.sample_rate)
+        dst_w.writeframes(frames)
+    return wav_info(dst_p)
+
+
 def concat_wavs(parts: list[Path], out: Path) -> WavInfo:
     """Concatenate PCM WAVs that share channels / width / rate. Stdlib only.
 

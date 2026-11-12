@@ -487,7 +487,9 @@ Three pages:
   script text stored as `refs/<name>.txt`. An existing name is refused,
   never silently overwritten. Saved references are clickable: a row
   opens a player for the clip and its transcript, so the words can be
-  checked against the audio.
+  checked against the audio — and the row holds a trim form that saves
+  a slice (start/end, edited transcript) as a new reference, leaving
+  the original untouched.
 - **Synthesize** — paste text, pick a backend and a reference clip,
   render. The transcript for a clip comes from its `.txt` file when one
   exists (Qwen3 full cloning, CosyVoice zero-shot, VoxCPM ultimate);
@@ -748,5 +750,8 @@ not.
     record buttons centred; the Synthesize page explains the reference
     clip (with a Setup link) and what mock renders (a 220 Hz test
     tone, not speech).
-17. v0.6.0 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
+17. **v0.5.10** — saved references can be trimmed to a copy: start/end
+    plus an editable transcript, saved under a new name, original
+    untouched.
+18. v0.6.0 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
     MuseTalk): WAV + manifest in, lip-synced MP4 out.

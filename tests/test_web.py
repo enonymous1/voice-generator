@@ -18,7 +18,7 @@ import pytest
 
 flask = pytest.importorskip("flask")
 
-from voice_generator.audio import write_pcm16_wav  # noqa: E402
+from voice_generator.audio import wav_info, write_pcm16_wav  # noqa: E402
 from voice_generator.web.app import WebConfig, create_app  # noqa: E402
 
 SCRIPT = "Hello, this is a test of my cloned voice."
@@ -103,6 +103,66 @@ def test_synth_page_explains_max_chars(client):
     assert "split into chunks of at most this many characters" in text
     assert "Smaller chunks use less memory" in text
     assert "300 is the default" in text
+
+
+def test_setup_trim_saves_copy(client, project):
+    resp = client.post(
+        "/setup/trim",
+        data={
+            "source": "me",
+            "name": "me_10s",
+            "start": "0",
+            "end": "10",
+            "transcript": "Trimmed words here.",
+        },
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+    assert "Saved refs/me_10s.wav" in resp.get_data(as_text=True)
+    # The copy is 10s with the edited transcript; the original is untouched.
+    assert (project / "refs" / "me_10s.wav").is_file()
+    assert (project / "refs" / "me_10s.txt").read_text(encoding="utf-8") == "Trimmed words here."
+    assert wav_info(project / "refs" / "me_10s.wav").duration_s == pytest.approx(10.0, abs=0.01)
+    assert wav_info(project / "refs" / "me.wav").duration_s == pytest.approx(12.0, abs=0.01)
+
+
+def test_setup_trim_refuses_duplicate_and_bad_range(client):
+    client.post(
+        "/setup/trim",
+        data={"source": "me", "name": "me_10s", "start": "0", "end": "10", "transcript": "x"},
+    )
+    resp = client.post(
+        "/setup/trim",
+        data={"source": "me", "name": "me_10s", "start": "0", "end": "10", "transcript": "x"},
+        follow_redirects=True,
+    )
+    assert "already exists" in resp.get_data(as_text=True)
+    resp = client.post(
+        "/setup/trim",
+        data={"source": "me", "name": "me_2s", "start": "5", "end": "2", "transcript": "x"},
+        follow_redirects=True,
+    )
+    assert "must be after start" in resp.get_data(as_text=True)
+
+
+def test_setup_trim_empty_transcript_writes_no_txt(client, project):
+    client.post(
+        "/setup/trim",
+        data={"source": "me", "name": "me_short", "start": "0", "end": "5", "transcript": "   "},
+        follow_redirects=True,
+    )
+    assert (project / "refs" / "me_short.wav").is_file()
+    assert not (project / "refs" / "me_short.txt").exists()
+
+
+def test_setup_page_shows_trim_form(client):
+    resp = client.get("/setup")
+    html = resp.get_data(as_text=True)
+    # Each readable reference offers trim-to-a-copy with an editable transcript.
+    assert 'action="/setup/trim"' in html
+    assert "Save trimmed copy" in html
+    assert 'name="transcript"' in html
+    assert "Trim a copy" in html
 
 
 def test_ref_file_serves_wav_and_txt(client, project):
