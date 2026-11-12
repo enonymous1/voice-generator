@@ -41,7 +41,7 @@ from voice_generator.audio import wav_info
 from voice_generator.backends import available_backends
 from voice_generator.web.jobs import JobStore, start_job
 from voice_generator.web.refs import MAX_UPLOAD_BYTES, save_reference
-from voice_generator.web.scripts import SCRIPTS, get_script, resolve_text
+from voice_generator.web.scripts import SCRIPTS, get_script
 
 # Which backends take which extra CLI flags from the synth form.
 _BACKEND_FLAGS: dict[str, list[str]] = {
@@ -134,8 +134,14 @@ def create_app(config: WebConfig | None = None) -> Flask:
 
     @app.get("/script")
     def script():
-        # ?id=range / ?id=harvard picks a script; default is the intro.
-        text = resolve_text(get_script(request.args.get("id")), cfg.script_text())
+        # ?id=range / ?id=harvard serves a setup script's text; no id
+        # serves recording-script.txt — the demo text the synth page
+        # fills in with "Use the recording script".
+        script_id = request.args.get("id")
+        if script_id:
+            text = get_script(script_id).text
+        else:
+            text = cfg.script_text()
         return text, 200, {"Content-Type": "text/plain; charset=utf-8"}
 
     @app.route("/synth", methods=["GET", "POST"])
@@ -258,7 +264,7 @@ def create_app(config: WebConfig | None = None) -> Flask:
                 "title": s.title,
                 "blurb": s.blurb,
                 "why": s.why,
-                "text": resolve_text(s, cfg.script_text()),
+                "text": s.text,
             }
             for s in SCRIPTS
         ]
@@ -279,7 +285,7 @@ def create_app(config: WebConfig | None = None) -> Flask:
                 name=name.strip(),
                 refs_dir=cfg.refs_dir,
                 # The transcript is the script the user actually read.
-                transcript=resolve_text(get_script(script_id), cfg.script_text()),
+                transcript=get_script(script_id).text,
             )
         finally:
             tmp_path.unlink(missing_ok=True)

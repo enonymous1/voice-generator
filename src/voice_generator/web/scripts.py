@@ -3,18 +3,17 @@
 The reference transcript must be the exact text the user read, so each
 script is a complete, self-contained passage: the user reads the whole
 thing, and the setup flow stores that passage's text as
-``refs/<name>.txt``. The intro script's text lives in the project's
-``recording-script.txt`` (the file the README/SETUP point at); the
-other two are UI copy, kept here next to the "why" notes the page shows
-with them.
+``refs/<name>.txt``.
 
-Why three scripts: the intro is the demo text (reference and first
-render match); the emotional-range paragraph forces pitch, energy and
-pacing shifts plus numbers and acronyms; the Harvard sentences are
+Why two scripts: the emotional-range paragraph forces pitch, energy
+and pacing shifts plus numbers and acronyms; the Harvard sentences are
 phonetically balanced (IEEE List 5, 1965 revised list — verified
 against the Columbia/McGill copies). The quick-brown-fox line is a
 pangram, not a Harvard sentence; it is included as a useful read-aloud
-line and labeled as such.
+line and labeled as such. The project introduction used to be a third
+choice; it was removed — it stays in the repo as
+``recording-script.txt``, the demo text the synth page and the A/B
+bench render.
 """
 
 from __future__ import annotations
@@ -48,24 +47,10 @@ class Script:
     title: str
     blurb: str
     why: list[str]
-    text: str | None  # None: load from the project's recording-script.txt
+    text: str
 
 
 SCRIPTS: list[Script] = [
-    Script(
-        id="intro",
-        title="Project introduction",
-        blurb="The demo text — the reference and your first render match.",
-        why=[
-            "Natural, conversational tone at a steady pace.",
-            "The same text you will render as a demo, so the reference "
-            "and the first render match.",
-            "Mostly mid-register declarative sentences — the least pitch "
-            "and energy variety of the three. Pick “Emotional range” if "
-            "you want the model to hear your highs and lows.",
-        ],
-        text=None,
-    ),
     Script(
         id="range",
         title="Emotional range",
@@ -112,18 +97,8 @@ SCRIPTS: list[Script] = [
 
 
 def get_script(script_id: str | None) -> Script:
-    """The script for ``script_id``; unknown ids fall back to the intro."""
+    """The script for ``script_id``; unknown ids fall back to the range."""
     for script in SCRIPTS:
         if script.id == script_id:
             return script
     return SCRIPTS[0]
-
-
-def resolve_text(script: Script, fallback_text: str) -> str:
-    """The exact text the user reads for ``script``.
-
-    The intro script's text comes from the project's
-    ``recording-script.txt`` (``fallback_text``); the others carry their
-    own text.
-    """
-    return script.text if script.text is not None else fallback_text

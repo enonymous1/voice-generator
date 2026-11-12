@@ -74,7 +74,7 @@ first. The clip is validated the same way <code>voice-gen check-ref</code>
 validates it, and a name that already exists is refused — never silently
 overwritten.</p>
 <form method="post" action="{{ url_for('setup_upload') }}" enctype="multipart/form-data">
-  <input type="hidden" name="script" id="script-id" value="intro">
+  <input type="hidden" name="script" id="script-id" value="range">
   <label for="clip">Audio file</label>
   <input type="file" id="clip" name="clip" accept="audio/*,.wav,.webm,.m4a,.mp3,.ogg">
   <label for="name">Reference name</label>

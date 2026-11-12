@@ -115,7 +115,7 @@ gets a slow render or a clear error, not a cryptic CUDA failure.
 
 New here? Start with [`SETUP.md`](SETUP.md) — the ordered, copy-paste
 path from an empty folder to your first cloned render. This section is
-the same material as reference; the recording script to read aloud is
+the same material as reference; the demo script is
 [`recording-script.txt`](recording-script.txt).
 
 ### Core only (5-minute smoke test, no GPU, no models)
@@ -475,8 +475,8 @@ voice-gen serve --chatterbox-python .venv-chatterbox\Scripts\python.exe --qwen-p
 Three pages:
 
 - **Setup** — shows the recording script to read aloud. Pick one of
-  three scripts (project introduction, emotional-range paragraph,
-  Harvard sentences), each with its "why this works" notes. Record in
+  two scripts (emotional-range paragraph, Harvard sentences), each with
+  its "why this works" notes. Record in
   the browser (MediaRecorder) or upload a file; a non-WAV recording is
   converted with ffmpeg to 16 kHz mono PCM-16, validated the same way
   `check-ref` validates it, and saved as `refs/<name>.wav` with the
@@ -716,5 +716,10 @@ not.
 8. **v0.5.1** — three recording scripts on the Setup page (project
    introduction, emotional-range paragraph, Harvard sentences) with
    their "why this works" notes and clip-length guidance.
-9. v0.6.0 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
-   MuseTalk): WAV + manifest in, lip-synced MP4 out.
+9. **v0.5.2** — the script picker in a card, one equal height for all
+   scripts, so swapping never moves the page.
+10. **v0.5.3** — the project introduction drops out of the Setup
+    choices; the emotional-range paragraph is the default, Harvard
+    sentences the other choice.
+11. v0.6.0 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
+    MuseTalk): WAV + manifest in, lip-synced MP4 out.

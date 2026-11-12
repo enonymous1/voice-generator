@@ -5,6 +5,17 @@ All notable changes to voice-generator, following
 
 ## [Unreleased]
 
+## [0.5.3] — 2026-11-12 (drop the intro script)
+
+### Changed
+- The Setup page offers two recording scripts now, not three: the
+  project introduction is removed, leaving the emotional-range
+  paragraph (the default) and the Harvard sentences.
+  `recording-script.txt` stays in the repo as the demo text the synth
+  page and the A/B bench render — it is no longer a setup choice, and
+  the CLI quickstart still points at it for the manual recording flow.
+  Unknown script ids fall back to the emotional-range paragraph.
+
 ## [0.5.2] — 2026-11-12 (Setup script card, equal height)
 
 ### Changed

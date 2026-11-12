@@ -65,10 +65,15 @@ def test_synth_page_lists_backends_and_refs(client):
     assert "me — 12.0s, 16000 Hz" in html  # the fixture clip, no transcript yet
 
 
-def test_setup_page_shows_script(client):
+def test_setup_page_shows_default_script(client):
     resp = client.get("/setup")
     assert resp.status_code == 200
-    assert SCRIPT in resp.get_data(as_text=True)
+    html = resp.get_data(as_text=True)
+    # Emotional range is the default script; the project introduction
+    # is no longer a setup choice.
+    assert "6:45 AM" in html
+    assert "Project introduction" not in html
+    assert "Hi, I'm Justin" not in html
 
 
 def test_setup_page_lists_script_options(client):
@@ -76,6 +81,7 @@ def test_setup_page_lists_script_options(client):
     html = resp.get_data(as_text=True)
     assert "Emotional range" in html
     assert "Harvard sentences" in html
+    assert "Project introduction" not in html
     # The range paragraph and its "why" notes are on the page.
     assert "87.5%" in html
     assert "upward inflection" in html
@@ -93,7 +99,6 @@ def test_setup_page_script_card_has_equal_height_stack(client):
     # card's height and swapping scripts never moves the page below.
     assert 'class="card"' in html
     assert 'class="script-stack"' in html
-    assert "Project introduction" in html
     assert "Emotional range" in html
     assert "Harvard sentences" in html
     css = (
@@ -116,8 +121,9 @@ def test_script_endpoint_with_id(client):
     assert resp.status_code == 200
     assert "6:45 AM" in resp.get_data(as_text=True)
     assert "V-12 project launched in 2023" in resp.get_data(as_text=True)
+    # An unknown id falls back to the default script (emotional range).
     resp = client.get("/script?id=bogus")
-    assert resp.get_data(as_text=True) == SCRIPT
+    assert "6:45 AM" in resp.get_data(as_text=True)
 
 
 def test_script_endpoint(client):
@@ -139,8 +145,10 @@ def test_upload_wav_saves_ref_and_transcript(client, project):
     resp = _upload(client, "me2", wav)
     assert resp.status_code == 302
     assert (project / "refs" / "me2.wav").is_file()
-    # The transcript is the recording script the setup page displayed.
-    assert (project / "refs" / "me2.txt").read_text(encoding="utf-8") == SCRIPT
+    # The transcript is the default script (emotional range) — no script
+    # field was posted, so the upload falls back to it.
+    txt = (project / "refs" / "me2.txt").read_text(encoding="utf-8")
+    assert "V-12 project launched in 2023" in txt
     page = client.get("/setup")
     assert "me2" in page.get_data(as_text=True)
 
@@ -150,18 +158,19 @@ def test_upload_with_range_script_stores_range_transcript(client, project):
     _tone_wav(wav)
     resp = _upload(client, "range1", wav, script="range")
     assert resp.status_code == 302
-    # The transcript is the paragraph the user read, not the intro script.
+    # The transcript is the paragraph the user read, not the demo script.
     txt = (project / "refs" / "range1.txt").read_text(encoding="utf-8")
     assert "V-12 project launched in 2023" in txt
     assert "87.5%" in txt
 
 
-def test_upload_unknown_script_falls_back_to_intro(client, project):
+def test_upload_unknown_script_falls_back_to_range(client, project):
     wav = project / "upload.wav"
     _tone_wav(wav)
     resp = _upload(client, "fallback", wav, script="bogus")
     assert resp.status_code == 302
-    assert (project / "refs" / "fallback.txt").read_text(encoding="utf-8") == SCRIPT
+    txt = (project / "refs" / "fallback.txt").read_text(encoding="utf-8")
+    assert "V-12 project launched in 2023" in txt
 
 
 def test_upload_duplicate_name_refused(client, project):
@@ -198,7 +207,8 @@ def test_upload_webm_converts_with_ffmpeg(client, project):
     resp = _upload(client, "phone", webm, filename="clip.webm")
     assert resp.status_code == 302
     assert (project / "refs" / "phone.wav").is_file()
-    assert (project / "refs" / "phone.txt").read_text(encoding="utf-8") == SCRIPT
+    txt = (project / "refs" / "phone.txt").read_text(encoding="utf-8")
+    assert "V-12 project launched in 2023" in txt
 
 
 def test_record_api_accepts_wav(client, project):
