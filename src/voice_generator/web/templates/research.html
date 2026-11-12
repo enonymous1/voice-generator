@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Research — voice-generator{% endblock %}
+{% block content %}
+<h1>Research — fast open voice-cloning models</h1>
+<p class="muted">The survey behind the backend shortlist: which free, open,
+locally runnable voice-cloning TTS models are worth building on, and
+which were ruled out (and why). Rendered from the report in
+<code>docs/research/</code>, so this page and the published research
+page always show the same text.</p>
+{% if content %}
+<div class="research-body">{{ content | safe }}</div>
+{% elif raw %}
+<div class="callout warn">
+  The <code>markdown</code> library isn't installed in this environment,
+  so the report is shown as plain text. Run
+  <code>pip install -e ".[web]"</code> in the project's venv, then
+  reload this page.
+</div>
+<pre>{{ raw }}</pre>
+{% else %}
+<p class="muted">No research report found in <code>docs/research/</code>.</p>
+{% endif %}
+{% endblock %}

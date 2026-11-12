@@ -463,8 +463,8 @@ which backends are importable in this env, ffmpeg on PATH.
 
 `voice-gen serve` starts a local Flask app on
 `http://127.0.0.1:5000/` — the same pipeline behind a form instead of
-flags. Install it first: `pip install -e ".[web]"` (Flask; the core
-stays dependency-free).
+flags. Install it first: `pip install -e ".[web]"` (Flask + markdown;
+the core stays dependency-free).
 
 ```bat
 voice-gen serve
@@ -472,7 +472,7 @@ voice-gen serve
 voice-gen serve --chatterbox-python .venv-chatterbox\Scripts\python.exe --qwen-python .venv-qwen3\Scripts\python.exe --voxcpm-python .venv-voxcpm\Scripts\python.exe
 ```
 
-Three pages:
+Three pages plus a reference page:
 
 - **Setup** — shows the recording script to read aloud. Pick one of
   two scripts (emotional-range paragraph, Harvard sentences), each with
@@ -499,6 +499,9 @@ Three pages:
   link.
 - **History** — past renders from `output/`, newest first, with their
   manifests.
+- **Research** — the fast-open-voice-cloning-models survey, rendered
+  from the Markdown report in `docs/research/` (newest dated file),
+  so the UI and the published research page always show the same text.
 
 Renders drive the CLI as a subprocess (`python -m voice_generator
 synth ...`), so the UI can never drift from the CLI's render path, and
@@ -622,14 +625,20 @@ is no server, no Docker image, and no hosted component to deploy.
    run; the box is then fully offline. Back up `refs/` (your reference
    clips + transcripts) separately — they are the irreplaceable inputs.
 
-**Website (GitHub Pages):** the public landing page lives in `site/`
-and deploys automatically on push to `main` via
+**Website (GitHub Pages):** the public site lives in `site/` and
+deploys automatically on push to `main` via
 `.github/workflows/pages.yml` (the test suite runs first; a broken build
-never publishes). It has a landing page, the research brief, and a
-listen/compare page whose audio slots fill in from `samples.json` after
-the A/B bench — see `site/README.md` for how samples land. One-time
-setup after the first push: Settings → Pages → Source: GitHub Actions.
-The site is a static extra: the CLI itself stays a local tool.
+never publishes). It is generated, not hand-edited: `voice-gen freeze`
+renders the UI to `site/` — landing, research (the full Markdown
+report), setup/synthesize/history snapshots with a static-preview
+banner, plus the listen/compare page copied verbatim. With
+`--seed-mock` the freeze fills gaps with mock demo data (a tone
+reference, two mock renders) in a scratch copy, so an empty project
+still freezes to something worth looking at. The listen page's audio
+slots fill in from `samples.json` after the A/B bench — see
+`site/README.md` for how samples land. One-time setup after the first
+push: Settings → Pages → Source: GitHub Actions. The site is a static
+extra: the CLI itself stays a local tool.
 
 **Packaging a release:**
 
@@ -753,5 +762,8 @@ not.
 17. **v0.5.10** — saved references can be trimmed to a copy: start/end
     plus an editable transcript, saved under a new name, original
     untouched.
-18. v0.6.0 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
+18. **v0.5.11** — `voice-gen freeze` renders the UI to a static site
+    for Pages (with `--seed-mock` for empty projects), and the UI gains
+    a Research page rendering the Markdown report.
+19. v0.6.0 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
     MuseTalk): WAV + manifest in, lip-synced MP4 out.

@@ -284,6 +284,51 @@ audio { width: 100%; margin-top: 0.5rem; }
 
 .card h2 { margin-top: 0; }
 
+/* Ported from the Pages site's stylesheet so the frozen landing and
+   listen pages render from this one file: the lede paragraph, link
+   buttons, and the listen page's per-backend cards. */
+.lede { font-size: 1.15rem; color: var(--lede); }
+
+.btn {
+  display: inline-block;
+  background: var(--accent);
+  color: #fff;
+  padding: 0.55rem 1.1rem;
+  border-radius: 6px;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.btn:hover { text-decoration: none; filter: brightness(1.1); }
+
+.btn.secondary {
+  background: var(--body-bg);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.card h3 { margin-top: 0; }
+
+.card audio { width: 100%; margin-top: 0.5rem; }
+
+.card.pending {
+  background: var(--pending-bg);
+  color: var(--muted);
+}
+
+.card .meta {
+  font-size: 0.88rem;
+  color: var(--muted);
+  margin-top: 0.5rem;
+}
+
 /* Equal-height script display: both script blocks share one grid
    cell, so the card is as tall as the tallest script and swapping
    scripts never moves the rest of the page. Hidden blocks stay in

@@ -32,8 +32,9 @@ qwen3 = ["qwen-tts"]
 # venv; this extra only adds the voxcpm package itself.
 voxcpm = ["voxcpm"]
 # The local web UI (voice-gen serve): Flask + Jinja2, localhost only.
-# Kept out of the core so the CLI stays dependency-free.
-web = ["flask"]
+# Kept out of the core so the CLI stays dependency-free. markdown
+# renders the research report on the Research page (and in freeze).
+web = ["flask", "markdown"]
 dev = ["pytest", "ruff"]
 
 [project.scripts]

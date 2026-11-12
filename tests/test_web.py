@@ -11,6 +11,7 @@ import json
 import math
 import shutil
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -63,6 +64,7 @@ def test_synth_page_lists_backends_and_refs(client):
     for backend in ("mock", "chatterbox", "qwen3", "cosyvoice", "voxcpm"):
         assert backend in html
     assert "me — 12.0s, 16000 Hz" in html  # the fixture clip, no transcript yet
+    assert "Static preview" not in html  # the frozen banner is freeze-only
 
 
 def test_synth_page_offers_range_script_fill(client):
@@ -471,3 +473,40 @@ def test_history_empty_state(client):
     resp = client.get("/history")
     assert resp.status_code == 200
     assert "No renders yet" in resp.get_data(as_text=True)
+
+
+def test_research_page_renders_report(project, client):
+    (project / "docs" / "research").mkdir(parents=True)
+    (project / "docs" / "research" / "report.md").write_text(
+        "# Fast open voice-cloning models\n\n"
+        "| Backend | License |\n|---|---|\n| VoxCPM2 | Apache-2.0 |\n",
+        encoding="utf-8",
+    )
+    resp = client.get("/research")
+    assert resp.status_code == 200
+    html = resp.get_data(as_text=True)
+    assert "Fast open voice-cloning models" in html
+    assert "<table" in html  # the Markdown table is rendered, not shown raw
+    assert "VoxCPM2" in html
+    assert 'href="/research"' in html  # Research is in the nav
+
+
+def test_research_page_without_report(client):
+    resp = client.get("/research")
+    assert resp.status_code == 200
+    assert "No research report found" in resp.get_data(as_text=True)
+
+
+def test_research_page_without_markdown_warns(project, client, monkeypatch):
+    (project / "docs" / "research").mkdir(parents=True)
+    (project / "docs" / "research" / "report.md").write_text(
+        "# Fast open voice-cloning models\n\nSome text.\n", encoding="utf-8"
+    )
+    monkeypatch.setitem(sys.modules, "markdown", None)
+    resp = client.get("/research")
+    assert resp.status_code == 200
+    html = resp.get_data(as_text=True)
+    assert "isn't installed" in html
+    assert 'pip install -e ".[web]"' in html
+    assert "<pre>" in html  # raw text still shown, but the warning says why
+    assert "Some text." in html

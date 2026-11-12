@@ -5,6 +5,41 @@ All notable changes to voice-generator, following
 
 ## [Unreleased]
 
+## [0.5.11] — 2026-11-12 (freeze the UI for Pages)
+
+### Added
+- `voice-gen freeze` renders the local web UI to a static site
+  (default `site/`, which the Pages workflow already publishes), so
+  the public site is a snapshot of the living tool instead of
+  hand-maintained HTML that drifts from it. It fetches /synth, /setup,
+  /history, /research through the Flask test client, renders the
+  landing template as index.html, rewrites absolute links to relative
+  file names, copies the media they point at (stylesheet, reference
+  WAVs, render WAVs + manifests), and copies the listen/compare page
+  verbatim. Frozen pages carry a static-preview banner; forms are
+  inert. With `--seed-mock` the freeze works on a scratch copy and
+  fills gaps only — a 10 s tone reference and two mock renders when
+  refs/ or output/ is empty — so the real refs/ and output/ are never
+  polluted; seeded snapshots say so in their banner.
+- The web UI has a fourth page, **Research**, rendering the Markdown
+  report from `docs/research/` (newest dated file) — the same text the
+  frozen research page shows. `markdown` joins the `web` extra for
+  it; without the library the page falls back to the raw text.
+
+### Changed
+- `site/` is now generated output, not hand-edited: index.html comes
+  from the landing template, research.html from the Markdown report,
+  style.css from the Flask stylesheet (the listen page's `.cards`,
+  `.btn`, and `.lede` rules were ported into it). listen.html,
+  samples.json, and samples/ are still copied verbatim.
+- The research page on the site is now the full report, not the
+  condensed brief — one source, no drift.
+
+### Fixed
+- The Research page's no-markdown fallback now says the library is
+  missing and how to install it (`pip install -e ".[web]"`), instead
+  of silently showing the report as raw Markdown.
+
 ## [0.5.10] — 2026-11-12 (trim a reference to a copy)
 
 ### Added

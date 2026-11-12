@@ -1,6 +1,8 @@
-/* voice-generator Pages site — plain, self-contained, no external assets.
-   System font stack only: the site must render identically offline,
-   on GitHub Pages, and in a local preview, with no CDN dependency. */
+/* voice-generator web UI — plain, self-contained, no external assets.
+   System-aware theme: every color is a variable, with a
+   prefers-color-scheme: dark override (same approach as the Pages
+   site). No JavaScript framework; the only JS is the recorder and the
+   job poller, both in the templates that need them. */
 
 :root {
   --ink: #1a1a1a;
@@ -14,11 +16,16 @@
   --th-bg: #f7f7f7;
   --lede: #333;
   --pending-bg: #fafafa;
+  --ok-bg: #e6f4ea;
+  --ok-ink: #137333;
+  --err-bg: #fce8e6;
+  --err-ink: #a50e0e;
+  --btn-bg: #1a5fb4;
+  --rec-bg: #c5221f;
+  --stop-on-bg: #ffffff;
+  --stop-on-ink: #1a1a1a;
 }
 
-/* System-aware theme: follows the OS light/dark setting. Every color
-   on the page comes from the variables above, so the dark theme is a
-   variable swap, not a second stylesheet. */
 @media (prefers-color-scheme: dark) {
   :root {
     --ink: #e6e6e6;
@@ -32,6 +39,14 @@
     --th-bg: #1e1e1e;
     --lede: #d4d4d4;
     --pending-bg: #1a1a1a;
+    --ok-bg: #122b18;
+    --ok-ink: #81c995;
+    --err-bg: #2d1414;
+    --err-ink: #f28b82;
+    --btn-bg: #2b6cb0;
+    --rec-bg: #d93025;
+    --stop-on-bg: #e8e8e8;
+    --stop-on-ink: #1a1a1a;
   }
 }
 
@@ -63,27 +78,17 @@ nav .brand {
   margin-right: auto;
 }
 
-nav a {
-  color: var(--accent);
-  text-decoration: none;
-}
-
+nav a { color: var(--accent); text-decoration: none; }
 nav a:hover { text-decoration: underline; }
 
-main {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 1.5rem 1rem 3rem;
-}
+main { max-width: 900px; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
 
 h1 { font-size: 1.9rem; line-height: 1.25; margin: 0.5rem 0 1rem; }
 h2 { font-size: 1.35rem; margin: 2rem 0 0.75rem; }
 h3 { font-size: 1.1rem; margin: 1.5rem 0 0.5rem; }
-
 p { margin: 0.5rem 0; }
 ul, ol { margin: 0.5rem 0; padding-left: 1.5rem; }
 li { margin: 0.25rem 0; }
-
 a { color: var(--accent); }
 
 code {
@@ -104,7 +109,75 @@ pre {
 
 pre code { background: none; padding: 0; }
 
-.lede { font-size: 1.15rem; color: var(--lede); }
+/* Setup page: record (1 part) beside upload (3 parts); stack on
+   narrow screens. */
+.setup-grid {
+  display: grid;
+  grid-template-columns: 1fr 3fr;
+  gap: 1rem;
+  align-items: stretch;
+}
+
+.setup-grid .card {
+  display: flex;
+  flex-direction: column;
+}
+
+/* The record card is the short one — its controls sit centred in the
+   card's full height instead of floating at the top. */
+#rec-ui {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* An ID rule above beats the browser's [hidden] style, so re-assert it
+   (same reason the script blocks need their own hidden rule). */
+#rec-ui[hidden] { display: none; }
+
+@media (max-width: 700px) {
+  .setup-grid { grid-template-columns: 1fr; }
+}
+
+/* Saved references: the name is a toggle that opens a detail row
+   with a player and the transcript. */
+.ref-toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: var(--accent);
+  cursor: pointer;
+  text-align: left;
+}
+
+.ref-toggle::before { content: "▸ "; }
+.ref-toggle[aria-expanded="true"]::before { content: "▾ "; }
+
+.ref-detail audio { width: 100%; margin: 0.5rem 0; }
+
+.ref-transcript { margin: 0.5rem 0 0; white-space: pre-wrap; }
+
+/* Trim form inside a reference detail row. */
+.trim-form { margin-top: 1rem; border-top: 1px solid var(--line); padding-top: 0.5rem; }
+
+.trim-row { display: flex; gap: 1rem; flex-wrap: wrap; align-items: end; }
+
+.trim-row label { margin-top: 0.5rem; }
+
+.trim-row input[type="number"] { width: 7rem; }
+
+.trim-row input[type="text"] { width: 12rem; }
+
+.trim-form textarea { min-height: 6rem; }
+
+/* A short explanation under a form label. */
+.field-hint {
+  margin: 0.25rem 0 0.5rem;
+  font-size: 0.9rem;
+}
 
 .callout {
   background: var(--callout-bg);
@@ -114,12 +187,48 @@ pre code { background: none; padding: 0; }
   border-radius: 0 6px 6px 0;
 }
 
-.callout.warn {
-  background: var(--warn-bg);
-  border-left-color: #b58900;
+.callout.warn { background: var(--warn-bg); border-left-color: #b58900; }
+.muted { color: var(--muted); font-size: 0.92rem; }
+
+.flash { padding: 0.75rem 1rem; border-radius: 6px; margin: 1rem 0; }
+.flash.ok { background: var(--ok-bg); color: var(--ok-ink); }
+.flash.error { background: var(--err-bg); color: var(--err-ink); }
+
+label { display: block; font-weight: 600; margin: 1rem 0 0.35rem; }
+
+textarea, select, input[type="text"], input[type="number"] {
+  width: 100%;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--body-bg);
+  color: var(--ink);
+  font: inherit;
 }
 
-.muted { color: var(--muted); font-size: 0.92rem; }
+textarea { min-height: 12rem; }
+
+button, input[type="submit"] {
+  background: var(--btn-bg);
+  color: #fff;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 6px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 1rem;
+}
+
+button:hover, input[type="submit"]:hover { filter: brightness(1.1); }
+
+button.secondary {
+  background: var(--body-bg);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+
+button:disabled { opacity: 0.5; cursor: default; }
 
 .table-wrap { overflow-x: auto; margin: 1rem 0; }
 
@@ -138,7 +247,47 @@ th, td {
 
 th { background: var(--th-bg); }
 
+.script {
+  background: var(--code-bg);
+  border-radius: 6px;
+  padding: 1rem 1.1rem;
+  white-space: pre-wrap;
+  font-size: 0.95rem;
+}
+
+audio { width: 100%; margin-top: 0.5rem; }
+
 .btn-row { display: flex; gap: 0.75rem; flex-wrap: wrap; margin: 1rem 0; }
+
+.script-pick {
+  display: block;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  margin: 0;
+  font-weight: 400;
+  cursor: pointer;
+  flex: 1 1 200px;
+}
+
+.script-pick:has(input:checked) { border-color: var(--accent); }
+
+.script-block { margin-top: 0.5rem; }
+
+.card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--pending-bg);
+  padding: 1rem 1.25rem;
+  margin: 1rem 0;
+}
+
+.card h2 { margin-top: 0; }
+
+/* Ported from the Pages site's stylesheet so the frozen landing and
+   listen pages render from this one file: the lede paragraph, link
+   buttons, and the listen page's per-backend cards. */
+.lede { font-size: 1.15rem; color: var(--lede); }
 
 .btn {
   display: inline-block;
@@ -158,19 +307,11 @@ th { background: var(--th-bg); }
   border: 1px solid var(--accent);
 }
 
-/* Listen page: one card per backend. A card is either a player or a
-   pending slot — never a fake sample. */
 .cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 1rem;
   margin: 1rem 0;
-}
-
-.card {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 1rem;
 }
 
 .card h3 { margin-top: 0; }
@@ -188,12 +329,105 @@ th { background: var(--th-bg); }
   margin-top: 0.5rem;
 }
 
-.script {
-  background: var(--code-bg);
-  border-radius: 6px;
-  padding: 1rem 1.1rem;
-  white-space: pre-wrap;
-  font-size: 0.95rem;
+/* Equal-height script display: both script blocks share one grid
+   cell, so the card is as tall as the tallest script and swapping
+   scripts never moves the rest of the page. Hidden blocks stay in
+   layout (visibility, not display) so they still define the height —
+   no JavaScript measuring needed, and it re-measures itself on
+   resize or font change. */
+.script-stack { display: grid; }
+.script-stack > .script-block { grid-area: 1 / 1; }
+.script-block[hidden] { display: block; visibility: hidden; }
+
+/* Record controls: a big round mic button to start, a square stop
+   button that starts greyed out and turns white once recording. */
+.rec-controls {
+  display: flex;
+  gap: 1.25rem;
+  align-items: flex-start;
+  margin: 1rem 0;
+}
+
+.rec-controls #rec-timer { align-self: center; }
+
+.rec-control {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.rec-label { font-size: 0.85rem; color: var(--muted); }
+
+.rec-btn {
+  width: 72px;
+  height: 72px;
+  border: none;
+  padding: 0;
+  margin-top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: var(--btn-bg);
+  color: #fff;
+}
+
+.rec-btn.mic { border-radius: 50%; }
+.rec-btn.mic svg { width: 36px; height: 36px; }
+
+.rec-btn.mic.recording {
+  background: var(--rec-bg);
+  animation: rec-pulse 1.5s infinite;
+}
+
+.rec-btn.stop {
+  border-radius: 14px;
+  background: var(--th-bg);
+  color: var(--muted);
+  opacity: 0.55;
+  cursor: default;
+}
+
+.rec-btn.stop svg { width: 30px; height: 30px; }
+
+.rec-btn.stop:enabled {
+  background: var(--stop-on-bg);
+  color: var(--stop-on-ink);
+  opacity: 1;
+  cursor: pointer;
+}
+
+@keyframes rec-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(197, 34, 31, 0.45); }
+  70% { box-shadow: 0 0 0 14px rgba(197, 34, 31, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(197, 34, 31, 0); }
+}
+
+/* Upload drop zone: dashed target that is also the file picker. */
+.dropzone {
+  border: 2px dashed var(--line);
+  border-radius: 8px;
+  padding: 1.5rem 1rem;
+  text-align: center;
+  color: var(--muted);
+  cursor: pointer;
+  margin: 0.75rem 0;
+}
+
+.dropzone.dragover {
+  border-color: var(--accent);
+  background: var(--callout-bg);
+  color: var(--ink);
+}
+
+.dropzone strong { color: var(--ink); }
+
+.dropzone-file {
+  display: block;
+  margin-top: 0.5rem;
+  color: var(--ink);
+  font-weight: 600;
 }
 
 footer {

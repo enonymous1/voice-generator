@@ -1,0 +1,24 @@
+{
+  "manifest_version": 1,
+  "backend": "mock",
+  "license": "MIT (project code; generates a tone, not speech)",
+  "backend_settings": {
+    "note": "tone only \u2014 not speech",
+    "language": "en"
+  },
+  "reference_wav": null,
+  "reference_text": null,
+  "x_vector_only": false,
+  "language": "en",
+  "output": "demo_hello.wav",
+  "duration_s": 3.643,
+  "sample_rate": 24000,
+  "chunks": [
+    {
+      "index": 1,
+      "text": "Hello, this is a demo render from the mock backend.",
+      "wav": "chunk_001.wav",
+      "duration_s": 3.643
+    }
+  ]
+}

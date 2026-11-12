@@ -58,9 +58,31 @@ class WebConfig:
     refs_dir: Path = Path("refs")
     output_dir: Path = Path("output")
     script_path: Path = Path("recording-script.txt")
+    research_path: Path = Path("docs/research")
     backend_pythons: dict[str, str] = field(default_factory=dict)
     host: str = "127.0.0.1"
     port: int = 5000
+
+    def research_file(self) -> Path | None:
+        """The research report to show: a file directly, or the newest
+        ``*.md`` in a directory (reports are dated, so the newest name
+        wins). None when there is nothing to show."""
+        if self.research_path.is_file():
+            return self.research_path
+        if self.research_path.is_dir():
+            reports = sorted(self.research_path.glob("*.md"))
+            return reports[-1] if reports else None
+        return None
+
+    def research_markdown(self) -> str | None:
+        """The research report's Markdown, or None when there is none."""
+        report = self.research_file()
+        if report is None:
+            return None
+        try:
+            return report.read_text(encoding="utf-8")
+        except OSError:
+            return None
 
     def python_for(self, backend: str) -> str:
         """Interpreter that runs ``backend`` (default: this server's own)."""
@@ -374,6 +396,19 @@ def create_app(config: WebConfig | None = None) -> Flask:
     @app.get("/history")
     def history():
         return render_template("history.html", rows=cfg.list_history())
+
+    @app.get("/research")
+    def research():
+        md = cfg.research_markdown()
+        html = None
+        if md is not None:
+            try:
+                import markdown
+
+                html = markdown.markdown(md, extensions=["tables", "fenced_code"])
+            except ImportError:
+                html = None  # no markdown lib: the template shows the raw text
+        return render_template("research.html", content=html, raw=md)
 
     @app.get("/outputs/<path:filename>")
     def output_file(filename: str):

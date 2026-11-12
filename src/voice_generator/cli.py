@@ -7,6 +7,7 @@ Examples (Windows, in the Chatterbox venv):
   voice-gen synth --text "Hello, this is my digital twin." \
       --ref refs\\me_10s.wav --out output\\hello.wav --backend mock
   voice-gen serve  (local web UI on http://127.0.0.1:5000/)
+  voice-gen freeze --seed-mock  (static snapshot of the UI into site/)
 
 Error contract: expected failures (missing files, bad input, a backend
 not installed in this venv) print a one-line ``Error: ...`` to stderr and
@@ -107,6 +108,24 @@ def _synth(args: argparse.Namespace) -> int:
     )
     print(f"\nDone: {result.wav_path}  ({result.duration_s:.1f}s, {result.chunks} chunk(s))")
     print(f"Manifest: {result.manifest_path}")
+    return 0
+
+
+def _freeze(args: argparse.Namespace) -> int:
+    """Render the web UI to a static site (default: the project's site/)."""
+    try:
+        from voice_generator.web.freeze import freeze_project
+    except ImportError:
+        print(
+            'Error: freeze needs the web UI — pip install -e ".[web]" in this venv',
+            file=sys.stderr,
+        )
+        return 1
+    result = freeze_project(args.project, args.out, seed_mock=args.seed_mock)
+    print(f"froze {len(result['files'])} files to {result['out']}")
+    if result["seeded"]:
+        print(f"  seeded mock demo data: {', '.join(result['seeded_files'])}")
+    print("  commit + push — the Pages workflow publishes site/ as-is")
     return 0
 
 
@@ -265,6 +284,22 @@ def main(argv: list[str] | None = None) -> int:
     )
     p_serve.add_argument("--voxcpm-python", default=None, help="python.exe of the VoxCPM2 venv")
 
+    p_freeze = sub.add_parser(
+        "freeze", help="render the web UI to a static site for GitHub Pages"
+    )
+    p_freeze.add_argument(
+        "--project", type=Path, default=Path("."), help="project root (default: .)"
+    )
+    p_freeze.add_argument(
+        "--out", type=Path, default=Path("site"), help="output directory (default: site)"
+    )
+    p_freeze.add_argument(
+        "--seed-mock",
+        action="store_true",
+        help="fill gaps with mock demo data (a tone reference, two mock renders) "
+        "in a scratch copy — the real refs/ and output/ are never touched",
+    )
+
     args = parser.parse_args(argv)
 
     try:
@@ -286,6 +321,8 @@ def main(argv: list[str] | None = None) -> int:
             return _synth(args)
         if args.command == "serve":
             return _serve(args)
+        if args.command == "freeze":
+            return _freeze(args)
     except EXPECTED_ERRORS as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1

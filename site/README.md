@@ -1,24 +1,31 @@
 # voice-generator website
 
-The public landing page for this project, deployed by GitHub Pages from
-this folder (`site/`) via `.github/workflows/pages.yml`. Static HTML +
-CSS + a little vanilla JS; no build step, no external assets, no
-framework. Every link is relative, so the site works at the project
-Pages URL (`enonymous1.github.io/voice-generator/`) and in a local
-preview. The stylesheet is system-aware: `prefers-color-scheme: dark`
-switches the site to a dark theme, and every page declares
+The public site for this project, deployed by GitHub Pages from this
+folder (`site/`) via `.github/workflows/pages.yml`. **This folder is
+generated output — do not hand-edit it.** Run `voice-gen freeze` (from
+the project root) to regenerate it from the living web UI; with
+`--seed-mock` it fills gaps with mock demo data when the project has
+no real clips or renders yet. Static HTML + CSS + a little vanilla JS;
+no build step, no external assets, no framework. Every link is
+relative, so the site works at the project Pages URL
+(`enonymous1.github.io/voice-generator/`) and in a local preview. The
+stylesheet is system-aware: `prefers-color-scheme: dark` switches the
+site to a dark theme, and every page declares
 `<meta name="color-scheme" content="light dark">`.
 
 ## Pages
 
 - `index.html` — landing: what the tool is, how it works, backends table,
-  quickstart. Content mirrors the repo README; keep the two in sync when
+  quickstart. Generated from the Flask landing template
+  (`src/voice_generator/web/templates/landing.html`); edit that, then
+  re-freeze. Content mirrors the repo README; keep the two in sync when
   a backend ships or a version changes.
-- `research.html` — the fast-open-voice-cloning-models brief (researched
-  2026-11-10): recommendation, top 3, at-a-glance table, licence traps,
-  open questions. The full per-candidate notes are in the repo at
-  `docs/research/fast-open-voice-cloning-tts-2026-11-10.md` — the page
-  links there rather than duplicating all sixteen sections.
+- `research.html` — the fast-open-voice-cloning-models brief, generated
+  from the full report in `docs/research/` (newest dated file). The
+  report is the single source: edit it, then re-freeze.
+- `synth.html`, `setup.html`, `history.html` — frozen snapshots of the
+  web UI's pages, with a static-preview banner; their forms don't work
+  here, the live tool is `voice-gen serve`.
 - `listen.html` — same script, four backends, side by side. It fetches
   `samples.json` and renders one card per backend in `expected`: a player
   when a sample exists, a pending slot when it does not. **Never put a
@@ -48,7 +55,11 @@ switches the site to a dark theme, and every page declares
   convert each backend's WAV to MP3 and add one entry per backend.
   `duration_s` and `wall_s` come from the bench's `ab_comparison.json`.
   MP3 (`libmp3lame -q:a 4`) keeps the page light; the WAVs stay the
-  source of truth in `output/` and are never committed.
+  source of truth in `output/` and are never committed *for the listen
+  page*. Note the freeze also copies render WAVs + manifests into
+  `site/outputs/` for the frozen History page — those *are* committed
+  as part of the snapshot, so only freeze renders you're happy to
+  publish.
 - The raw reference clip (`refs/me.wav`) is never published — personal
   data, gitignored. Only rendered clones go on this page.
 

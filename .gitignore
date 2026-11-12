@@ -5,8 +5,8 @@ __pycache__/
 venv/
 dist/
 build/
-output/
-refs/
-*.wav
+/output/
+/refs/
+/*.wav
 !tests/fixtures/*.wav
 .env
