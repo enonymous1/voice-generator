@@ -5,7 +5,15 @@ All notable changes to voice-generator, following
 
 ## [Unreleased]
 
-## [0.5.6] — 2026-11-12 (drop the recording-script fill)
+## [0.5.7] — 2026-11-12 (max-chars hint)
+
+### Added
+- "Max chars per chunk" on the Synthesize page has a short
+  explanation under it: the script is split into chunks of at most
+  that many characters (on sentence boundaries where possible),
+  each rendered separately and joined; smaller chunks use less
+  memory per render but add more joins, larger chunks flow better
+  but are a bigger job per render.
 
 ### Removed
 - "Use the recording script" is gone from the Synthesize page; the

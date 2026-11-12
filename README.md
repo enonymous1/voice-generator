@@ -733,5 +733,9 @@ not.
 13. **v0.5.6** — "Use the recording script" is removed from the
     Synthesize page; the emotional-range fill is the only script
     button.
-14. v0.6.0 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
+14. **v0.5.7** — "Max chars per chunk" has a short explanation under
+    it on the Synthesize page (smaller chunks = less memory per
+    render but more joins; larger chunks = smoother flow but a
+    bigger job).
+15. v0.6.0 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
     MuseTalk): WAV + manifest in, lip-synced MP4 out.

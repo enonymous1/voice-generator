@@ -109,6 +109,12 @@ pre {
 
 pre code { background: none; padding: 0; }
 
+/* A short explanation under a form label. */
+.field-hint {
+  margin: 0.25rem 0 0.5rem;
+  font-size: 0.9rem;
+}
+
 .callout {
   background: var(--callout-bg);
   border-left: 4px solid var(--accent);

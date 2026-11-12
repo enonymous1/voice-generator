@@ -70,6 +70,12 @@ from <code>refs/&lt;name&gt;.txt</code> when the Setup page stored one.</p>
   </div>
 
   <label for="max_chars">Max chars per chunk</label>
+  <p class="muted field-hint">The script is split into chunks of at most this
+  many characters — on sentence boundaries where possible — and each
+  chunk is rendered separately, then the audio is joined back together.
+  Smaller chunks use less memory per render but add more joins; larger
+  chunks flow better, but each one is a bigger job for the model. 300 is
+  the default.</p>
   <input type="number" id="max_chars" name="max_chars" value="300" step="1" min="50">
 
   <input type="submit" value="Render">

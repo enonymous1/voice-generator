@@ -77,6 +77,18 @@ def test_synth_page_offers_range_script_fill(client):
     assert "Use the recording script" not in html
 
 
+def test_synth_page_explains_max_chars(client):
+    resp = client.get("/synth")
+    # The template wraps the hint across lines, so collapse whitespace
+    # before matching the sentences.
+    text = " ".join(resp.get_data(as_text=True).split())
+    # The chunk-size field carries its own explanation, under its label.
+    assert "field-hint" in text
+    assert "split into chunks of at most this many characters" in text
+    assert "Smaller chunks use less memory" in text
+    assert "300 is the default" in text
+
+
 def test_setup_page_shows_default_script(client):
     resp = client.get("/setup")
     assert resp.status_code == 200
