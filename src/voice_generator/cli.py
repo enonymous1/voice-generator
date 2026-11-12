@@ -6,6 +6,7 @@ Examples (Windows, in the Chatterbox venv):
   voice-gen synth --script script.txt --ref refs\\me_10s.wav --out output\\ep1.wav
   voice-gen synth --text "Hello, this is my digital twin." \
       --ref refs\\me_10s.wav --out output\\hello.wav --backend mock
+  voice-gen serve  (local web UI on http://127.0.0.1:5000/)
 
 Error contract: expected failures (missing files, bad input, a backend
 not installed in this venv) print a one-line ``Error: ...`` to stderr and
@@ -109,6 +110,53 @@ def _synth(args: argparse.Namespace) -> int:
     return 0
 
 
+def _serve(args: argparse.Namespace) -> int:
+    """Start the local web UI (Flask, localhost only by default)."""
+    try:
+        from voice_generator.web.app import WebConfig, create_app
+    except ImportError:
+        print(
+            'Error: the web UI needs Flask — pip install -e ".[web]" in this venv',
+            file=sys.stderr,
+        )
+        return 1
+    backend_pythons = {
+        name: python
+        for name, python in (
+            ("chatterbox", args.chatterbox_python),
+            ("qwen3", args.qwen_python),
+            ("cosyvoice", args.cosy_python),
+            ("voxcpm", args.voxcpm_python),
+        )
+        if python
+    }
+    config = WebConfig(
+        refs_dir=args.refs_dir,
+        output_dir=args.output_dir,
+        script_path=args.script,
+        backend_pythons=backend_pythons,
+        host=args.host,
+        port=args.port,
+    )
+    config.refs_dir.mkdir(parents=True, exist_ok=True)
+    config.output_dir.mkdir(parents=True, exist_ok=True)
+    if args.host not in ("127.0.0.1", "localhost", "::1"):
+        print(
+            f"Warning: listening on {args.host} — the UI is unauthenticated "
+            "and can read your reference clips; prefer 127.0.0.1",
+            file=sys.stderr,
+        )
+    app = create_app(config)
+    print(f"voice-generator web UI at http://{args.host}:{args.port}/  (Ctrl+C to stop)")
+    print(f"  refs: {config.refs_dir}   output: {config.output_dir}")
+    try:
+        app.run(host=args.host, port=args.port, use_reloader=False, threaded=True)
+    except OSError as exc:
+        print(f"Error: could not start the server: {exc}", file=sys.stderr)
+        return 1
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     """Parse arguments and dispatch. Returns a process exit code."""
     parser = argparse.ArgumentParser(prog="voice-gen", description="Local FOSS voice cloning")
@@ -197,6 +245,26 @@ def main(argv: list[str] | None = None) -> int:
         help="VoxCPM2: skip torch.compile (use if the first render fails on Triton/compile errors)",
     )
 
+    p_serve = sub.add_parser("serve", help="start the local web UI (localhost only by default)")
+    p_serve.add_argument("--host", default="127.0.0.1", help="bind address (default: 127.0.0.1)")
+    p_serve.add_argument("--port", type=int, default=5000)
+    p_serve.add_argument("--refs-dir", type=Path, default=Path("refs"))
+    p_serve.add_argument("--output-dir", type=Path, default=Path("output"))
+    p_serve.add_argument(
+        "--script",
+        type=Path,
+        default=Path("recording-script.txt"),
+        help="script the Setup page shows (its text is the reference transcript)",
+    )
+    p_serve.add_argument(
+        "--chatterbox-python", default=None, help="python.exe of the Chatterbox venv"
+    )
+    p_serve.add_argument("--qwen-python", default=None, help="python.exe of the Qwen3 venv")
+    p_serve.add_argument(
+        "--cosy-python", default=None, help="python of the CosyVoice Conda env"
+    )
+    p_serve.add_argument("--voxcpm-python", default=None, help="python.exe of the VoxCPM2 venv")
+
     args = parser.parse_args(argv)
 
     try:
@@ -216,6 +284,8 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command == "synth":
             return _synth(args)
+        if args.command == "serve":
+            return _serve(args)
     except EXPECTED_ERRORS as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1

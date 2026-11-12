@@ -137,6 +137,9 @@ voice-gen synth --backend mock --text "Hello world. This is a plumbing test." --
 You should see `output\smoke.wav` and `output\smoke.manifest.json`.
 If those appear, the pipeline works and only the model installs remain.
 
+The web UI is an extra: `pip install -e ".[web]"`, then
+`voice-gen serve` (see Web UI below).
+
 > Linux/macOS: same commands, with `python3 -m venv` and
 > `.venv-core/bin/activate`.
 
@@ -456,11 +459,51 @@ which backends are importable in this env, ffmpeg on PATH.
   wall-clock time on your own box is the number that matters, not the
   vendor table.
 
+## Web UI
+
+`voice-gen serve` starts a local Flask app on
+`http://127.0.0.1:5000/` — the same pipeline behind a form instead of
+flags. Install it first: `pip install -e ".[web]"` (Flask; the core
+stays dependency-free).
+
+```bat
+voice-gen serve
+:: or, with separate backend venvs:
+voice-gen serve --chatterbox-python .venv-chatterbox\Scripts\python.exe --qwen-python .venv-qwen3\Scripts\python.exe --voxcpm-python .venv-voxcpm\Scripts\python.exe
+```
+
+Three pages:
+
+- **Setup** — shows the recording script to read aloud. Record in the
+  browser (MediaRecorder) or upload a file; a non-WAV recording is
+  converted with ffmpeg to 16 kHz mono PCM-16, validated the same way
+  `check-ref` validates it, and saved as `refs/<name>.wav` with the
+  script text stored as `refs/<name>.txt`. An existing name is refused,
+  never silently overwritten.
+- **Synthesize** — paste text, pick a backend and a reference clip,
+  render. The transcript for a clip comes from its `.txt` file when one
+  exists (Qwen3 full cloning, CosyVoice zero-shot, VoxCPM ultimate);
+  without one, Qwen3 falls back to `--x-vector-only` and CosyVoice to
+  cross-lingual mode. The render runs in the background — the job page
+  shows the live CLI log, then an audio player, download, and manifest
+  link.
+- **History** — past renders from `output/`, newest first, with their
+  manifests.
+
+Renders drive the CLI as a subprocess (`python -m voice_generator
+synth ...`), so the UI can never drift from the CLI's render path, and
+the server process never imports torch. Which interpreter runs a
+backend comes from `--<backend>-python` (default: the server's own
+Python — the single-venv setup). The UI binds localhost only by
+default; pass `--host` to listen elsewhere and it warns you, because
+the UI is unauthenticated and can read your reference clips. It follows
+the system light/dark theme.
+
 ## Local Development
 
 ```bat
-pip install -e ".[dev]"
-pytest        :: 42 tests, no GPU, no downloads, no torch needed
+pip install -e ".[dev,web]"
+pytest        :: 61 tests, no GPU, no downloads, no torch needed
 ruff check src tests tools
 ```
 
@@ -508,6 +551,12 @@ voice-generator/
 │       ├── qwen_backend.py
 │       ├── cosy_backend.py
 │       └── voxcpm_backend.py
+│   └── web/                # local Flask UI (voice-gen serve)
+│       ├── app.py          # app factory + routes (Synthesize/Setup/History)
+│       ├── jobs.py         # background synth jobs (CLI subprocess + live log)
+│       ├── refs.py         # reference-clip intake (ffmpeg convert + validate)
+│       ├── templates/      # Jinja2 pages (base, synth, setup, job, history)
+│       └── static/style.css  # system-aware light/dark theme
 ├── tools/
 │   └── ab_compare.py         # cross-environment A/B rendering
 ├── .github/workflows/
@@ -656,5 +705,10 @@ not.
    tool.
 6. **v0.4.0** — VoxCPM2 backend (controllable + ultimate clone modes,
    torch.compile fallback, A/B tool extended to all four backends).
-7. v0.5 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
+7. **v0.5.0** — local Flask web UI (`voice-gen serve`): Setup
+   (record/upload a reference clip), Synthesize (form-driven renders
+   with a live log), History (past renders + manifests). GitHub Pages
+   site (landing, research brief, listen/compare) + system-aware
+   light/dark theme on the site and the UI.
+8. v0.6.0 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
    MuseTalk): WAV + manifest in, lip-synced MP4 out.

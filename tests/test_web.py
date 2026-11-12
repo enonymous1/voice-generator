@@ -1,0 +1,207 @@
+"""Tests for the local Flask web UI (``voice-gen serve``).
+
+Uses Flask's test client — no server is started, no GPU or model
+downloads are needed: renders run through the ``mock`` backend in a
+subprocess (the same ``python -m voice_generator synth`` the UI drives
+for real backends). The webm-conversion test needs ffmpeg on PATH and
+skips without it.
+"""
+
+import json
+import math
+import shutil
+import subprocess
+import time
+
+import pytest
+
+flask = pytest.importorskip("flask")
+
+from voice_generator.audio import write_pcm16_wav  # noqa: E402
+from voice_generator.web.app import WebConfig, create_app  # noqa: E402
+
+SCRIPT = "Hello, this is a test of my cloned voice."
+
+
+def _tone_wav(path, seconds: float = 12.0, rate: int = 16000) -> None:
+    samples = [0.3 * math.sin(2 * math.pi * 440 * i / rate) for i in range(int(seconds * rate))]
+    write_pcm16_wav(path, samples, rate)
+
+
+@pytest.fixture()
+def project(tmp_path, monkeypatch):
+    """A throwaway project folder: refs/, output/, recording script."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "refs").mkdir()
+    (tmp_path / "output").mkdir()
+    (tmp_path / "recording-script.txt").write_text(SCRIPT, encoding="utf-8")
+    _tone_wav(tmp_path / "refs" / "me.wav")
+    return tmp_path
+
+
+@pytest.fixture()
+def client(project):
+    config = WebConfig(
+        refs_dir=project / "refs",
+        output_dir=project / "output",
+        script_path=project / "recording-script.txt",
+    )
+    return create_app(config).test_client()
+
+
+def test_index_redirects_to_synth(client):
+    resp = client.get("/")
+    assert resp.status_code == 302
+    assert resp.headers["Location"].endswith("/synth")
+
+
+def test_synth_page_lists_backends_and_refs(client):
+    resp = client.get("/synth")
+    assert resp.status_code == 200
+    html = resp.get_data(as_text=True)
+    for backend in ("mock", "chatterbox", "qwen3", "cosyvoice", "voxcpm"):
+        assert backend in html
+    assert "me — 12.0s, 16000 Hz" in html  # the fixture clip, no transcript yet
+
+
+def test_setup_page_shows_script(client):
+    resp = client.get("/setup")
+    assert resp.status_code == 200
+    assert SCRIPT in resp.get_data(as_text=True)
+
+
+def test_script_endpoint(client):
+    resp = client.get("/script")
+    assert resp.status_code == 200
+    assert resp.get_data(as_text=True) == SCRIPT
+
+
+def _upload(client, name: str, wav_path, filename: str = "clip.wav"):
+    data = {"clip": (open(wav_path, "rb"), filename), "name": name}
+    return client.post("/setup/upload", data=data, content_type="multipart/form-data")
+
+
+def test_upload_wav_saves_ref_and_transcript(client, project):
+    wav = project / "upload.wav"
+    _tone_wav(wav)
+    resp = _upload(client, "me2", wav)
+    assert resp.status_code == 302
+    assert (project / "refs" / "me2.wav").is_file()
+    # The transcript is the recording script the setup page displayed.
+    assert (project / "refs" / "me2.txt").read_text(encoding="utf-8") == SCRIPT
+    page = client.get("/setup")
+    assert "me2" in page.get_data(as_text=True)
+
+
+def test_upload_duplicate_name_refused(client, project):
+    wav = project / "upload.wav"
+    _tone_wav(wav)
+    _upload(client, "me2", wav)
+    resp = _upload(client, "me2", wav, filename="clip2.wav")
+    assert resp.status_code == 302
+    page = client.get("/setup", follow_redirects=True)
+    assert "already exists" in page.get_data(as_text=True)
+
+
+def test_upload_bad_name_refused(client, project):
+    wav = project / "upload.wav"
+    _tone_wav(wav)
+    resp = _upload(client, "../evil", wav)
+    assert resp.status_code == 302
+    page = client.get("/setup", follow_redirects=True)
+    assert "bad reference name" in page.get_data(as_text=True)
+    assert not (project / "refs" / "evil.wav").exists()
+
+
+def test_upload_webm_converts_with_ffmpeg(client, project):
+    if not shutil.which("ffmpeg"):
+        pytest.skip("ffmpeg not on PATH")
+    wav = project / "upload.wav"
+    _tone_wav(wav)
+    webm = project / "clip.webm"
+    subprocess.run(
+        ["ffmpeg", "-y", "-i", str(wav), "-c:a", "libopus", str(webm)],
+        check=True,
+        capture_output=True,
+    )
+    resp = _upload(client, "phone", webm, filename="clip.webm")
+    assert resp.status_code == 302
+    assert (project / "refs" / "phone.wav").is_file()
+    assert (project / "refs" / "phone.txt").read_text(encoding="utf-8") == SCRIPT
+
+
+def test_record_api_accepts_wav(client, project):
+    wav = project / "upload.wav"
+    _tone_wav(wav)
+    data = {"clip": (open(wav, "rb"), "recording.wav"), "name": "api"}
+    resp = client.post("/api/record", data=data, content_type="multipart/form-data")
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["ok"] is True
+    assert body["duration_s"] == 12.0
+    assert (project / "refs" / "api.wav").is_file()
+
+
+def _poll_job(client, job_id: str, timeout_s: float = 60.0) -> dict:
+    deadline = time.time() + timeout_s
+    while time.time() < deadline:
+        body = client.get(f"/api/jobs/{job_id}").get_json()
+        if body["status"] in ("done", "error"):
+            return body
+        time.sleep(0.5)
+    raise AssertionError(f"job {job_id} did not finish in {timeout_s}s")
+
+
+def test_synth_mock_job_end_to_end(client, project):
+    resp = client.post(
+        "/synth",
+        data={"text": "Hello world.", "backend": "mock", "ref": "", "max_chars": "300"},
+    )
+    assert resp.status_code == 302
+    job_id = resp.headers["Location"].rsplit("/jobs/", 1)[1]
+    body = _poll_job(client, job_id)
+    assert body["status"] == "done", body
+    assert body["wav"] and body["manifest"]
+    wav_name = body["wav"].rsplit("/outputs/", 1)[1]
+    assert (project / "output" / wav_name).is_file()
+    manifest = json.loads((project / "output" / body["manifest"].rsplit("/", 1)[1]).read_text())
+    assert manifest["backend"] == "mock"
+    wav_resp = client.get(body["wav"])
+    assert wav_resp.status_code == 200
+    assert wav_resp.headers["Content-Type"].startswith("audio/")
+    history = client.get("/history")
+    assert wav_name in history.get_data(as_text=True)
+
+
+def test_synth_unknown_backend_rejected(client):
+    resp = client.post(
+        "/synth", data={"text": "Hello.", "backend": "bogus", "ref": "", "max_chars": "300"}
+    )
+    assert resp.status_code == 400
+    assert "Unknown backend" in resp.get_data(as_text=True)
+
+
+def test_synth_real_backend_needs_ref(client):
+    resp = client.post(
+        "/synth",
+        data={"text": "Hello.", "backend": "chatterbox", "ref": "", "max_chars": "300"},
+    )
+    assert resp.status_code == 400
+    assert "need a reference clip" in resp.get_data(as_text=True)
+
+
+def test_output_path_traversal_blocked(client):
+    assert client.get("/outputs/../pyproject.toml").status_code == 404
+    assert client.get("/outputs/%2e%2e/pyproject.toml").status_code == 404
+    assert client.get("/outputs/evil.py").status_code == 404
+
+
+def test_unknown_job_404(client):
+    assert client.get("/jobs/nope").status_code == 404
+    assert client.get("/api/jobs/nope").status_code == 404
+
+
+def test_history_empty_state(client):
+    resp = client.get("/history")
+    assert resp.status_code == 200
+    assert "No renders yet" in resp.get_data(as_text=True)

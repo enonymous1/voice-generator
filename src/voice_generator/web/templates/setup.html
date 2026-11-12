@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}Setup — voice-generator{% endblock %}
+{% block content %}
+<h1>Setup — your reference clip</h1>
+<p>Read the script below out loud, in a quiet room, mic 15–30 cm away,
+in your normal voice. The recording becomes the voice every backend
+clones from. The transcript is the script itself — it is stored next to
+the clip, so the backends that need a transcript get it automatically.</p>
+
+<h2>The script</h2>
+<div class="script">{{ script }}</div>
+
+<h2>Record in the browser</h2>
+<div id="rec-unsupported" class="callout warn" hidden>
+  This browser cannot record audio here — use the file upload below
+  instead.
+</div>
+<div id="rec-ui">
+  <div class="btn-row">
+    <button type="button" id="rec-start">Start recording</button>
+    <button type="button" id="rec-stop" disabled>Stop</button>
+    <span id="rec-timer" class="muted"></span>
+  </div>
+  <audio id="rec-playback" controls hidden></audio>
+  <div id="rec-save" hidden>
+    <label for="rec-name">Save as reference</label>
+    <input type="text" id="rec-name" value="me">
+    <button type="button" id="rec-save-btn">Save this recording</button>
+    <span id="rec-status" class="muted"></span>
+  </div>
+</div>
+
+<h2>Or upload a file</h2>
+<p class="muted">A WAV goes straight in. Anything else (e.g. a webm
+from a phone recorder) is converted with ffmpeg to 16 kHz mono PCM-16
+first. The clip is validated the same way <code>voice-gen check-ref</code>
+validates it, and a name that already exists is refused — never silently
+overwritten.</p>
+<form method="post" action="{{ url_for('setup_upload') }}" enctype="multipart/form-data">
+  <label for="clip">Audio file</label>
+  <input type="file" id="clip" name="clip" accept="audio/*,.wav,.webm,.m4a,.mp3,.ogg">
+  <label for="name">Reference name</label>
+  <input type="text" id="name" name="name" value="me">
+  <input type="submit" value="Upload and validate">
+</form>
+
+<h2>Saved references</h2>
+{% if refs %}
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Name</th><th>Duration</th><th>Rate</th><th>Channels</th><th>Transcript</th></tr></thead>
+  <tbody>
+    {% for r in refs %}
+    <tr>
+      <td>{{ r.name }}</td>
+      <td>{% if r.duration_s is defined %}{{ r.duration_s }}s{% else %}—{% endif %}</td>
+      <td>{% if r.sample_rate is defined %}{{ r.sample_rate }} Hz{% else %}—{% endif %}</td>
+      <td>{% if r.channels is defined %}{{ r.channels }}{% else %}—{% endif %}</td>
+      <td>{% if r.has_transcript %}yes{% else %}no{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p class="muted">No reference clips saved yet.</p>
+{% endif %}
+
+<script>
+(function () {
+  var supported = !!(navigator.mediaDevices && window.MediaRecorder);
+  document.getElementById("rec-unsupported").hidden = supported;
+  document.getElementById("rec-ui").hidden = !supported;
+  if (!supported) return;
+
+  var startBtn = document.getElementById("rec-start");
+  var stopBtn = document.getElementById("rec-stop");
+  var timerEl = document.getElementById("rec-timer");
+  var playback = document.getElementById("rec-playback");
+  var saveBox = document.getElementById("rec-save");
+  var statusEl = document.getElementById("rec-status");
+  var rec = null, chunks = [], stream = null, timer = null, startedAt = 0, blob = null;
+
+  startBtn.addEventListener("click", function () {
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (s) {
+      stream = s;
+      chunks = [];
+      rec = new MediaRecorder(stream);
+      rec.ondataavailable = function (e) { if (e.data.size) chunks.push(e.data); };
+      rec.onstop = function () {
+        stream.getTracks().forEach(function (t) { t.stop(); });
+        blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
+        playback.src = URL.createObjectURL(blob);
+        playback.hidden = false;
+        saveBox.hidden = false;
+      };
+      rec.start();
+      startedAt = Date.now();
+      timer = setInterval(function () {
+        timerEl.textContent = Math.floor((Date.now() - startedAt) / 1000) + "s";
+      }, 250);
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+    }).catch(function (err) {
+      statusEl.textContent = "Microphone error: " + err.message;
+    });
+  });
+
+  stopBtn.addEventListener("click", function () {
+    if (rec && rec.state !== "inactive") rec.stop();
+    clearInterval(timer);
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+  });
+
+  document.getElementById("rec-save-btn").addEventListener("click", function () {
+    if (!blob) return;
+    var fd = new FormData();
+    fd.append("clip", blob, "recording.webm");
+    fd.append("name", document.getElementById("rec-name").value);
+    statusEl.textContent = "Saving…";
+    fetch("{{ url_for('record_api') }}", { method: "POST", body: fd })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        if (!res.ok) { statusEl.textContent = "Error: " + res.j.error; return; }
+        statusEl.textContent = "Saved — " + res.j.duration_s + "s, " + res.j.sample_rate +
+          " Hz. Reloading…";
+        setTimeout(function () { window.location.reload(); }, 800);
+      })
+      .catch(function (err) { statusEl.textContent = "Error: " + err.message; });
+  });
+})();
+</script>
+{% endblock %}

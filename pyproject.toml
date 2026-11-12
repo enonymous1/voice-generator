@@ -31,6 +31,9 @@ qwen3 = ["qwen-tts"]
 # installs a CUDA torch build first (see SETUP.md), same as the Qwen3
 # venv; this extra only adds the voxcpm package itself.
 voxcpm = ["voxcpm"]
+# The local web UI (voice-gen serve): Flask + Jinja2, localhost only.
+# Kept out of the core so the CLI stays dependency-free.
+web = ["flask"]
 dev = ["pytest", "ruff"]
 
 [project.scripts]

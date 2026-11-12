@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Render — voice-generator{% endblock %}
+{% block content %}
+<h1>Render <span class="muted">({{ job.backend }})</span></h1>
+<p>Status: <strong id="status">{{ job.status }}</strong></p>
+
+<pre id="log">{% for line in job.log %}{{ line }}
+{% endfor %}</pre>
+
+<div id="result" {% if job.status != "done" %}hidden{% endif %}>
+  <h2>Listen</h2>
+  {% if job.wav_name %}
+  <audio controls src="{{ url_for('output_file', filename=job.wav_name) }}"></audio>
+  <p><a href="{{ url_for('output_file', filename=job.wav_name) }}">Download WAV</a>
+  {% if job.manifest_name %} · <a href="{{ url_for('output_file', filename=job.manifest_name) }}">Manifest</a>{% endif %}</p>
+  {% endif %}
+</div>
+
+<div id="error" class="flash error" {% if job.status != "error" %}hidden{% endif %}>{% if job.error %}{{ job.error }}{% endif %}</div>
+
+<p><a href="{{ url_for('synth') }}">Render another</a> · <a href="{{ url_for('history') }}">History</a></p>
+
+<script>
+(function () {
+  var jobId = {{ job.id | tojson }};
+  var statusEl = document.getElementById("status");
+  var logEl = document.getElementById("log");
+  var resultEl = document.getElementById("result");
+  var errorEl = document.getElementById("error");
+  var timer = setInterval(function () {
+    fetch("/api/jobs/" + jobId).then(function (r) { return r.json(); }).then(function (j) {
+      statusEl.textContent = j.status;
+      logEl.textContent = j.log.join("\n");
+      if (j.status === "done") {
+        clearInterval(timer);
+        resultEl.hidden = false;
+        var audio = resultEl.querySelector("audio");
+        if (audio && j.wav) audio.src = j.wav;
+        var links = resultEl.querySelectorAll("a");
+        if (links[0] && j.wav) links[0].href = j.wav;
+        if (links[1] && j.manifest) links[1].href = j.manifest;
+      } else if (j.status === "error") {
+        clearInterval(timer);
+        errorEl.hidden = false;
+        errorEl.textContent = j.error || "Render failed.";
+      }
+    });
+  }, 1000);
+})();
+</script>
+{% endblock %}

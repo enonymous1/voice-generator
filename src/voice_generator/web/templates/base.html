@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>{% block title %}voice-generator{% endblock %}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<nav>
+  <a class="brand" href="{{ url_for('synth') }}">voice-generator</a>
+  <a href="{{ url_for('synth') }}">Synthesize</a>
+  <a href="{{ url_for('setup') }}">Setup</a>
+  <a href="{{ url_for('history') }}">History</a>
+</nav>
+<main>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      <div class="flash {{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</main>
+<footer>
+  Local only — this UI binds localhost and never sends audio anywhere.
+  Renders live in <code>output/</code>; reference clips live in <code>refs/</code>.
+</footer>
+</body>
+</html>

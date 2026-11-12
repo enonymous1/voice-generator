@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}History — voice-generator{% endblock %}
+{% block content %}
+<h1>History</h1>
+<p class="muted">Past renders from the output directory, newest first.
+Each row is a WAV plus the manifest that records exactly how it was
+made — the same provenance the CLI writes.</p>
+
+{% if rows %}
+<div class="table-wrap">
+<table>
+  <thead><tr><th>File</th><th>Backend</th><th>Duration</th><th>Rate</th><th>Manifest</th></tr></thead>
+  <tbody>
+    {% for r in rows %}
+    <tr>
+      <td><a href="{{ url_for('output_file', filename=r.name) }}">{{ r.name }}</a></td>
+      <td>{{ r.backend }}</td>
+      <td>{% if r.duration_s is not none %}{{ r.duration_s }}s{% else %}—{% endif %}</td>
+      <td>{% if r.sample_rate is not none %}{{ r.sample_rate }} Hz{% else %}—{% endif %}</td>
+      <td><a href="{{ url_for('output_file', filename=r.manifest) }}">manifest</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p class="muted">No renders yet — make one on the
+<a href="{{ url_for('synth') }}">Synthesize page</a>.</p>
+{% endif %}
+{% endblock %}

@@ -5,7 +5,19 @@ All notable changes to voice-generator, following
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-11-12 (local web UI)
+
 ### Added
+- Local Flask web UI (`voice-gen serve`, `src/voice_generator/web/`):
+  three pages on localhost only — Synthesize (paste text, pick a
+  backend + reference, render in the background with a live log, listen
+  and download), Setup (the recording script, record in the browser or
+  upload a clip; ffmpeg converts non-WAV audio, the clip is validated
+  like `check-ref`, and the script text is stored as the transcript),
+  and History (past renders with their manifests). Renders drive the
+  CLI as a subprocess, so the UI can never drift from the CLI's render
+  path; the server never imports torch. New `[web]` extra (`flask`);
+  CI installs `.[dev,web]`. The UI follows the system light/dark theme.
 - GitHub Pages site (`site/` + `.github/workflows/pages.yml`): landing
   page, the fast-open-models research brief, and a listen/compare page
   whose audio slots fill in from `samples.json` after the A/B bench.
@@ -13,8 +25,9 @@ All notable changes to voice-generator, following
   `docs/research/fast-open-voice-cloning-tts-2026-11-10.md`. One-time
   setup after the first push: Settings → Pages → Source: GitHub
   Actions; the Pages deploy itself is unrun until then.
-- The site follows the system light/dark theme (`prefers-color-scheme`,
-  with `<meta name="color-scheme" content="light dark">`).
+- The Pages site follows the system light/dark theme
+  (`prefers-color-scheme`, with
+  `<meta name="color-scheme" content="light dark">`).
 
 ## [0.4.0] — 2026-11-10 (VoxCPM2 backend)
 

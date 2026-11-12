@@ -244,6 +244,24 @@ folder to your user PATH, then close and reopen the terminal (or
 restart VS Code — its terminals inherit the environment from launch)
 and verify with `sox --version`.
 
+## 7. The web UI (optional)
+
+Same pipeline, behind a form instead of flags:
+
+```bat
+pip install -e ".[web]"
+voice-gen serve
+```
+
+Open http://127.0.0.1:5000/ — localhost only. **Setup** shows this
+recording script: read it aloud in the browser (or upload a clip) and
+it is validated and saved as `refs/me.wav` with the transcript stored
+beside it. **Synthesize** pastes text, picks a backend and a clip, and
+renders in the background with a live log. **History** lists past
+renders. With separate backend venvs, pass them through:
+`voice-gen serve --chatterbox-python .venv-chatterbox\Scripts\python.exe
+--qwen-python .venv-qwen3\Scripts\python.exe --voxcpm-python .venv-voxcpm\Scripts\python.exe`.
+
 ## If something goes wrong
 
 - `voice-gen doctor` first — it tells you which backend is actually

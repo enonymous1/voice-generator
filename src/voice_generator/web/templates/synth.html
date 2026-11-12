@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Synthesize — voice-generator{% endblock %}
+{% block content %}
+<h1>Synthesize</h1>
+<p class="muted">Paste text, pick a backend and a reference clip, and render.
+The render runs in the background — this page takes you to the job, and
+you can listen and download from there. The transcript for a clip comes
+from <code>refs/&lt;name&gt;.txt</code> when the Setup page stored one.</p>
+
+{% if not refs %}
+<div class="callout warn">
+  No reference clips yet. Real backends need one — record it on the
+  <a href="{{ url_for('setup') }}">Setup page</a> first. (The
+  <code>mock</code> backend needs none and is only a plumbing test.)
+</div>
+{% endif %}
+
+<form method="post" action="{{ url_for('synth') }}">
+  <label for="text">Text to render</label>
+  <textarea id="text" name="text" placeholder="Type or paste the script here…"></textarea>
+  <div class="btn-row">
+    <button type="button" class="secondary" id="load-script">Use the recording script</button>
+  </div>
+
+  <label for="backend">Backend</label>
+  <select id="backend" name="backend">
+    {% for b in backends %}
+    <option value="{{ b }}" {% if b == default_backend %}selected{% endif %}>{{ b }}</option>
+    {% endfor %}
+  </select>
+
+  <label for="ref">Reference clip</label>
+  <select id="ref" name="ref">
+    <option value="">— none (mock backend only) —</option>
+    {% for r in refs %}
+    <option value="{{ r.name }}">{{ r.name }} — {{ r.duration_s }}s, {{ r.sample_rate }} Hz{% if r.has_transcript %} (transcript attached){% endif %}{% if r.error %} (unreadable){% endif %}</option>
+    {% endfor %}
+  </select>
+
+  <div id="adv-chatterbox" class="adv">
+    <label for="variant">Chatterbox variant</label>
+    <select id="variant" name="variant">
+      <option value="turbo" selected>turbo (default — English, fast)</option>
+      <option value="original">original (CFG / exaggeration control)</option>
+      <option value="multilingual">multilingual</option>
+    </select>
+  </div>
+
+  <div id="adv-qwen3" class="adv" hidden>
+    <label for="model_size">Qwen3 model size</label>
+    <select id="model_size" name="model_size">
+      <option value="1.7b" selected>1.7b (default)</option>
+      <option value="0.6b">0.6b</option>
+    </select>
+    <p class="muted">Full cloning uses the clip’s transcript when one is
+    attached; without it, the render falls back to x-vector-only (lower
+    quality).</p>
+  </div>
+
+  <div id="adv-voxcpm" class="adv" hidden>
+    <label for="voxcpm_mode">VoxCPM2 mode</label>
+    <select id="voxcpm_mode" name="voxcpm_mode">
+      <option value="controllable" selected>controllable (no transcript needed)</option>
+      <option value="ultimate">ultimate (transcript-paired, best similarity)</option>
+    </select>
+    <label for="voxcpm_cfg">Guidance scale (cfg)</label>
+    <input type="number" id="voxcpm_cfg" name="voxcpm_cfg" value="2.0" step="0.1" min="0.1">
+    <label for="voxcpm_timesteps">Diffusion steps</label>
+    <input type="number" id="voxcpm_timesteps" name="voxcpm_timesteps" value="10" step="1" min="1">
+  </div>
+
+  <label for="max_chars">Max chars per chunk</label>
+  <input type="number" id="max_chars" name="max_chars" value="300" step="1" min="50">
+
+  <input type="submit" value="Render">
+</form>
+
+<script>
+(function () {
+  var backend = document.getElementById("backend");
+  function showAdv() {
+    ["chatterbox", "qwen3", "voxcpm"].forEach(function (b) {
+      var el = document.getElementById("adv-" + b);
+      if (el) el.hidden = backend.value !== b;
+    });
+  }
+  backend.addEventListener("change", showAdv);
+  showAdv();
+  document.getElementById("load-script").addEventListener("click", function () {
+    fetch("{{ url_for('script') }}").then(function (r) { return r.text(); })
+      .then(function (t) { document.getElementById("text").value = t; });
+  });
+})();
+</script>
+{% endblock %}
