@@ -66,6 +66,11 @@ def test_index_renders_landing(client):
     assert "Listen to past renders" in html
     assert "listen.html" not in html
     assert "Static preview" not in html  # the frozen banner is freeze-only
+    # The nav has an explicit Home link, and the external GitHub links
+    # open in a new tab instead of navigating away.
+    assert '>Home</a>' in html
+    assert 'href="/"' in html
+    assert 'target="_blank" rel="noopener">Get the code</a>' in html
 
 
 def test_synth_page_lists_backends_and_refs(client):

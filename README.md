@@ -781,5 +781,7 @@ not.
     written to match what the copy actually says.
 21. **v0.5.14** — the UI lands on a real home page (Start-here path,
     how it works, engines table) instead of redirecting to Synthesize.
-22. v0.6.0 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
+22. **v0.5.15** — an explicit Home link in the nav; the landing page's
+    external GitHub links open in a new tab.
+23. v0.6.0 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
     MuseTalk): WAV + manifest in, lip-synced MP4 out.

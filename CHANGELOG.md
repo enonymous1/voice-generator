@@ -5,6 +5,16 @@ All notable changes to voice-generator, following
 
 ## [Unreleased]
 
+## [0.5.15] — 2026-11-12 (Home link, external links in new tabs)
+
+### Added
+- The nav has an explicit **Home** link (the brand already went home,
+  but it wasn't obvious).
+
+### Changed
+- The landing page's external GitHub links (Get the code, SETUP.md,
+  README) open in a new tab instead of navigating away from the UI.
+
 ## [0.5.14] — 2026-11-12 (a real landing page)
 
 ### Added
