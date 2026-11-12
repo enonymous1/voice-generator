@@ -730,5 +730,8 @@ not.
 12. **v0.5.5** — a second fill button on the Synthesize page loads
     the emotional-range paragraph into the textarea, next to "Use the
     recording script".
-13. v0.6.0 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
+13. **v0.5.6** — "Use the recording script" is removed from the
+    Synthesize page; the emotional-range fill is the only script
+    button.
+14. v0.6.0 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
     MuseTalk): WAV + manifest in, lip-synced MP4 out.

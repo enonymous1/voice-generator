@@ -19,7 +19,6 @@ from <code>refs/&lt;name&gt;.txt</code> when the Setup page stored one.</p>
   <label for="text">Text to render</label>
   <textarea id="text" name="text" placeholder="Type or paste the script here…"></textarea>
   <div class="btn-row">
-    <button type="button" class="secondary" id="load-script">Use the recording script</button>
     <button type="button" class="secondary" id="load-range-script">Use the emotional-range script</button>
   </div>
 
@@ -87,10 +86,6 @@ from <code>refs/&lt;name&gt;.txt</code> when the Setup page stored one.</p>
   }
   backend.addEventListener("change", showAdv);
   showAdv();
-  document.getElementById("load-script").addEventListener("click", function () {
-    fetch("{{ url_for('script') }}").then(function (r) { return r.text(); })
-      .then(function (t) { document.getElementById("text").value = t; });
-  });
   document.getElementById("load-range-script").addEventListener("click", function () {
     fetch("{{ url_for('script') }}?id=range").then(function (r) { return r.text(); })
       .then(function (t) { document.getElementById("text").value = t; });

@@ -5,7 +5,13 @@ All notable changes to voice-generator, following
 
 ## [Unreleased]
 
-## [0.5.5] — 2026-11-12 (synth page range fill)
+## [0.5.6] — 2026-11-12 (drop the recording-script fill)
+
+### Removed
+- "Use the recording script" is gone from the Synthesize page; the
+  emotional-range fill is the only script button. The `/script`
+  endpoint still serves `recording-script.txt` (the demo text the
+  A/B bench renders) — only the button is removed.
 
 ### Added
 - The Synthesize page has a second fill button next to "Use the
