@@ -5,6 +5,24 @@ All notable changes to voice-generator, following
 
 ## [Unreleased]
 
+## [0.5.2] — 2026-11-12 (Setup script card, equal height)
+
+### Changed
+- The "Choose a script" section is a card now, and the script display
+  is one equal height for all three scripts: the blocks share a single
+  grid cell, so the card is as tall as the tallest script and swapping
+  scripts never moves the rest of the page. Hidden blocks stay in
+  layout (`visibility`, not `display`), so the height re-measures
+  itself on resize or font change with no JavaScript measuring.
+
+### Fixed
+- Two tests lost their identities in the v0.5.1 edits (single-line
+  edit anchors folded `test_script_endpoint_with_id` into the card
+  test and `test_upload_duplicate_name_refused` into the fallback
+  test — their assertions still ran, but under the wrong names, so the
+  suite reported 65 instead of 67). Both are restored as their own
+  tests; the suite is 67.
+
 ## [0.5.1] — 2026-11-12 (recording-script options)
 
 ### Added

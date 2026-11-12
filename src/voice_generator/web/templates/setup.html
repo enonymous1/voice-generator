@@ -20,28 +20,32 @@ automatically.</p>
   clip.
 </div>
 
-<h2>Choose a script</h2>
-<div class="btn-row" role="radiogroup" aria-label="Recording script">
-  {% for s in scripts %}
-  <label class="script-pick">
-    <input type="radio" name="script-choice" value="{{ s.id }}" {% if loop.first %}checked{% endif %}>
-    <strong>{{ s.title }}</strong><br>
-    <span class="muted">{{ s.blurb }}</span>
-  </label>
-  {% endfor %}
-</div>
-
-{% for s in scripts %}
-<div class="script-block" id="script-{{ s.id }}" {% if not loop.first %}hidden{% endif %}>
-  <div class="script">{{ s.text }}</div>
-  <h3>Why this script works</h3>
-  <ul>
-    {% for point in s.why %}
-    <li>{{ point }}</li>
+<section class="card" aria-label="Choose a script">
+  <h2>Choose a script</h2>
+  <div class="btn-row" role="radiogroup" aria-label="Recording script">
+    {% for s in scripts %}
+    <label class="script-pick">
+      <input type="radio" name="script-choice" value="{{ s.id }}" {% if loop.first %}checked{% endif %}>
+      <strong>{{ s.title }}</strong><br>
+      <span class="muted">{{ s.blurb }}</span>
+    </label>
     {% endfor %}
-  </ul>
-</div>
-{% endfor %}
+  </div>
+
+  <div class="script-stack">
+    {% for s in scripts %}
+    <div class="script-block" id="script-{{ s.id }}" {% if not loop.first %}hidden{% endif %}>
+      <div class="script">{{ s.text }}</div>
+      <h3>Why this script works</h3>
+      <ul>
+        {% for point in s.why %}
+        <li>{{ point }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endfor %}
+  </div>
+</section>
 
 <h2>Record in the browser</h2>
 <div id="rec-unsupported" class="callout warn" hidden>

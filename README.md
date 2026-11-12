@@ -505,7 +505,7 @@ the system light/dark theme.
 
 ```bat
 pip install -e ".[dev,web]"
-pytest        :: 65 tests, no GPU, no downloads, no torch needed
+pytest        :: 67 tests, no GPU, no downloads, no torch needed
 ruff check src tests tools
 ```
 

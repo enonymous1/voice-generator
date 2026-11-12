@@ -12,6 +12,7 @@ import math
 import shutil
 import subprocess
 import time
+from pathlib import Path
 
 import pytest
 
@@ -84,6 +85,32 @@ def test_setup_page_lists_script_options(client):
     assert "about 10 seconds" in html
 
 
+def test_setup_page_script_card_has_equal_height_stack(client):
+    resp = client.get("/setup")
+    html = resp.get_data(as_text=True)
+    # The picker and the script display sit in one card, and all three
+    # scripts render inside the stack — so the tallest defines the
+    # card's height and swapping scripts never moves the page below.
+    assert 'class="card"' in html
+    assert 'class="script-stack"' in html
+    assert "Project introduction" in html
+    assert "Emotional range" in html
+    assert "Harvard sentences" in html
+    css = (
+        Path(__file__).parent.parent
+        / "src"
+        / "voice_generator"
+        / "web"
+        / "static"
+        / "style.css"
+    ).read_text(encoding="utf-8")
+    assert ".script-stack" in css
+    assert "grid-area: 1 / 1" in css
+    # Hidden blocks stay in layout (visibility, not display).
+    assert ".script-block[hidden]" in css
+    assert "visibility: hidden" in css
+
+
 def test_script_endpoint_with_id(client):
     resp = client.get("/script?id=range")
     assert resp.status_code == 200
@@ -135,6 +162,9 @@ def test_upload_unknown_script_falls_back_to_intro(client, project):
     resp = _upload(client, "fallback", wav, script="bogus")
     assert resp.status_code == 302
     assert (project / "refs" / "fallback.txt").read_text(encoding="utf-8") == SCRIPT
+
+
+def test_upload_duplicate_name_refused(client, project):
     wav = project / "upload.wav"
     _tone_wav(wav)
     _upload(client, "me2", wav)

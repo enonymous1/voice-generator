@@ -198,6 +198,26 @@ audio { width: 100%; margin-top: 0.5rem; }
 
 .script-block { margin-top: 0.5rem; }
 
+.card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--pending-bg);
+  padding: 1rem 1.25rem;
+  margin: 1rem 0;
+}
+
+.card h2 { margin-top: 0; }
+
+/* Equal-height script display: all three script blocks share one grid
+   cell, so the card is as tall as the tallest script and swapping
+   scripts never moves the rest of the page. Hidden blocks stay in
+   layout (visibility, not display) so they still define the height —
+   no JavaScript measuring needed, and it re-measures itself on
+   resize or font change. */
+.script-stack { display: grid; }
+.script-stack > .script-block { grid-area: 1 / 1; }
+.script-block[hidden] { display: block; visibility: hidden; }
+
 footer {
   border-top: 1px solid var(--line);
   padding: 1rem;
