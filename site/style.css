@@ -293,6 +293,10 @@ audio { width: 100%; margin-top: 0.5rem; }
 
 .card h2 { margin-top: 0; }
 
+/* Job page: the render log scrolls inside its own card instead of
+   growing the page while the job runs. */
+.job-log { max-height: 320px; overflow-y: auto; }
+
 /* Ported from the Pages site's stylesheet so the frozen landing and
    listen pages render from this one file: the lede paragraph, link
    buttons, and the listen page's per-backend cards. */

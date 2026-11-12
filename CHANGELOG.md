@@ -5,6 +5,23 @@ All notable changes to voice-generator, following
 
 ## [Unreleased]
 
+## [0.5.21] — 2026-11-12 (Render page: Listen player + scrollable log)
+
+### Fixed
+- On the Render page, "Listen" was just a heading after a job
+  finished. The player and download links only rendered once the
+  WAV existed, so a page opened mid-render had nothing for the
+  poller to fill in when the job completed. They render now from
+  the start (src/href filled in by the poller on done), so the
+  finished render is playable and downloadable in place.
+
+### Changed
+- The render log is now its own card ("Render log", capped at
+  320 px with its own scrollbar) instead of growing the page while
+  the job runs. The poller follows the log only while the reader
+  is already at the bottom, so scrolling up to read doesn't get
+  yanked back down.
+
 ## [0.5.20] — 2026-11-12 (frozen site: script fill + history modal)
 
 ### Fixed

@@ -2,18 +2,23 @@
 {% block title %}Render — voice-generator{% endblock %}
 {% block content %}
 <h1>Render <span class="muted">({{ job.backend }})</span></h1>
-<p>Status: <strong id="status">{{ job.status }}</strong></p>
 
-<pre id="log">{% for line in job.log %}{{ line }}
+<section class="card" aria-label="Render log">
+  <h2>Render log</h2>
+  <p>Status: <strong id="status">{{ job.status }}</strong></p>
+  <pre id="log" class="job-log">{% for line in job.log %}{{ line }}
 {% endfor %}</pre>
+</section>
 
-<div id="result" {% if job.status != "done" %}hidden{% endif %}>
+<div id="result" class="card" {% if job.status != "done" %}hidden{% endif %}>
   <h2>Listen</h2>
-  {% if job.wav_name %}
-  <audio controls src="{{ url_for('output_file', filename=job.wav_name) }}"></audio>
-  <p><a href="{{ url_for('output_file', filename=job.wav_name) }}">Download WAV</a>
-  {% if job.manifest_name %} · <a href="{{ url_for('output_file', filename=job.manifest_name) }}">Manifest</a>{% endif %}</p>
-  {% endif %}
+  {# The player and links render even while the job is still running:
+     the poller fills in their src/href when it finishes. (They used
+     to render only once the WAV existed, so a page opened mid-render
+     had nothing for the poller to fill — just the bare heading.) #}
+  <audio controls preload="metadata" {% if job.wav_name %}src="{{ url_for('output_file', filename=job.wav_name) }}"{% endif %}></audio>
+  <p><a {% if job.wav_name %}href="{{ url_for('output_file', filename=job.wav_name) }}"{% endif %}>Download WAV</a>
+  · <a {% if job.manifest_name %}href="{{ url_for('output_file', filename=job.manifest_name) }}"{% endif %}>Manifest</a></p>
 </div>
 
 <div id="error" class="flash error" {% if job.status != "error" %}hidden{% endif %}>{% if job.error %}{{ job.error }}{% endif %}</div>
@@ -27,10 +32,16 @@
   var logEl = document.getElementById("log");
   var resultEl = document.getElementById("result");
   var errorEl = document.getElementById("error");
+  // The log starts at its last line when the page opens mid-render.
+  logEl.scrollTop = logEl.scrollHeight;
   var timer = setInterval(function () {
     fetch("/api/jobs/" + jobId).then(function (r) { return r.json(); }).then(function (j) {
       statusEl.textContent = j.status;
+      // Follow the log only while the reader is already at the bottom,
+      // so scrolling up to read doesn't get yanked back down.
+      var atBottom = logEl.scrollHeight - logEl.scrollTop - logEl.clientHeight < 40;
       logEl.textContent = j.log.join("\n");
+      if (atBottom) logEl.scrollTop = logEl.scrollHeight;
       if (j.status === "done") {
         clearInterval(timer);
         resultEl.hidden = false;

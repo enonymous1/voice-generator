@@ -807,5 +807,8 @@ not.
     modal work: the freeze writes the range script to a static file
     and rewrites the modal's data URLs to relative paths, instead of
     leaving absolute live-server URLs that 404 on Pages.
-28. v0.6.0 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
+28. **v0.5.21** — the Render page's Listen player renders while the
+    job is still running (the poller fills it in on done), and the
+    render log is its own scrollable card instead of growing the page.
+29. v0.6.0 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
     MuseTalk): WAV + manifest in, lip-synced MP4 out.

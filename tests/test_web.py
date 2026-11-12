@@ -571,6 +571,38 @@ def test_synth_mock_job_end_to_end(client, project):
     assert wav_name in history.get_data(as_text=True)
 
 
+def test_job_page_running_has_listen_player_and_scrollable_log(client):
+    # A page opened mid-render: the player and links must already be
+    # in the DOM (no WAV yet), or the poller has nothing to fill in
+    # when the job finishes — the "Listen" heading used to sit alone.
+    job = client.application.vg_jobs.create("mock")
+    html = client.get(f"/jobs/{job.id}").get_data(as_text=True)
+    assert "<audio" in html
+    assert "Download WAV" in html
+    assert "Manifest" in html
+    assert 'id="result"' in html
+    # The log lives in its own scrollable card, so a long run doesn't
+    # grow the page; the poller follows it only while the reader is
+    # already at the bottom.
+    assert 'aria-label="Render log"' in html
+    assert 'class="job-log"' in html
+    assert "logEl.scrollTop = logEl.scrollHeight" in html
+
+
+def test_job_page_done_fills_listen_links(client, project):
+    resp = client.post(
+        "/synth",
+        data={"text": "Hello world.", "backend": "mock", "ref": "", "max_chars": "300"},
+    )
+    job_id = resp.headers["Location"].rsplit("/jobs/", 1)[1]
+    body = _poll_job(client, job_id)
+    assert body["status"] == "done", body
+    html = client.get(f"/jobs/{job_id}").get_data(as_text=True)
+    assert f'src="{body["wav"]}"' in html
+    assert f'href="{body["wav"]}"' in html
+    assert f'href="{body["manifest"]}"' in html
+
+
 def test_synth_unknown_backend_rejected(client):
     resp = client.post(
         "/synth", data={"text": "Hello.", "backend": "bogus", "ref": "", "max_chars": "300"}
