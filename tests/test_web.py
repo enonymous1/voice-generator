@@ -327,6 +327,44 @@ def _upload(client, name: str, wav_path, filename: str = "clip.wav", script: str
     return client.post("/setup/upload", data=data, content_type="multipart/form-data")
 
 
+def test_setup_flash_shows_as_dialog(client, project):
+    # A save confirmation pops up as a dialog, not just a flash at the
+    # top of the page (which goes unnoticed when scrolled down).
+    wav = project / "upload.wav"
+    _tone_wav(wav)
+    resp = _upload(client, "me2", wav)
+    assert resp.status_code == 302
+    page = client.get("/setup")
+    html = page.get_data(as_text=True)
+    assert '<dialog id="flash-dialog"' in html
+    assert "Saved refs/me2.wav" in html
+    assert "showModal()" in html
+    # An error flash gets the dialog too.
+    resp = client.post(
+        "/setup/upload", data={}, content_type="multipart/form-data"
+    )
+    assert resp.status_code == 302
+    page = client.get("/setup")
+    html = page.get_data(as_text=True)
+    assert '<dialog id="flash-dialog"' in html
+    assert "No file chosen" in html
+
+
+def test_record_api_flash_shows_dialog_on_reload(client, project):
+    # The record flow reloads after the save; the flashed confirmation
+    # is what the dialog shows on the reloaded page.
+    wav = project / "upload.wav"
+    _tone_wav(wav)
+    data = {"clip": (open(wav, "rb"), "recording.wav"), "name": "api"}
+    resp = client.post("/api/record", data=data, content_type="multipart/form-data")
+    assert resp.status_code == 200
+    assert resp.get_json()["ok"] is True
+    page = client.get("/setup")
+    html = page.get_data(as_text=True)
+    assert '<dialog id="flash-dialog"' in html
+    assert "Saved refs/api.wav" in html
+
+
 def test_upload_wav_saves_ref_and_transcript(client, project):
     wav = project / "upload.wav"
     _tone_wav(wav)

@@ -783,5 +783,9 @@ not.
     how it works, engines table) instead of redirecting to Synthesize.
 22. **v0.5.15** — an explicit Home link in the nav; the landing page's
     external GitHub links open in a new tab.
-23. v0.6.0 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
+23. **v0.5.16** — save/validation confirmations pop up as a dialog
+    instead of only flashing at the top of the page; the record flow,
+    which was silently confirming nothing after its reload, now
+    flashes the same saved message as an upload.
+24. v0.6.0 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
     MuseTalk): WAV + manifest in, lip-synced MP4 out.

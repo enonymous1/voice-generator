@@ -329,6 +329,23 @@ audio { width: 100%; margin-top: 0.5rem; }
   margin-top: 0.5rem;
 }
 
+/* Confirmation dialog: the flash message as a modal that pops up on
+   load, so a save/validation confirmation can't be missed below the
+   fold. Same chrome as the history render modal. */
+.flash-dialog {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--body-bg);
+  color: var(--ink);
+  padding: 1.25rem 1.5rem;
+  max-width: min(90vw, 720px);
+  width: 100%;
+}
+
+.flash-dialog::backdrop { background: rgba(0, 0, 0, 0.55); }
+
+.flash-dialog form { text-align: right; margin: 0.5rem 0 0; }
+
 /* History render modal: native <dialog> with a player and the manifest.
    The backdrop dims the page; Escape and a backdrop click close it. */
 .render-modal {

@@ -107,6 +107,8 @@ def test_freeze_writes_pages_and_rewrites_links(project, tmp_path):
     assert 'href="index.html"' in index  # the brand now links home
     assert '>Home</a>' in index  # explicit Home link in the nav
     assert 'target="_blank" rel="noopener">Get the code</a>' in index
+    # Frozen pages never flash, so no confirmation dialog is rendered.
+    assert "flash-dialog" not in index
     # The listen/compare page is copied verbatim.
     assert (out / "listen.html").is_file()
     assert (out / "samples.json").is_file()

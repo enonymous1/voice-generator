@@ -383,6 +383,14 @@ def create_app(config: WebConfig | None = None) -> Flask:
         except ValueError as exc:
             return jsonify({"error": str(exc)}), 400
         info = result["info"]
+        # Flashed, not just returned: the record page reloads after the
+        # save, and the flash is what the confirmation dialog shows.
+        flash(
+            f"Saved refs/{name}.wav — {info.duration_s:.1f}s, "
+            f"{info.sample_rate} Hz, {info.channels}ch. "
+            + (" ".join(str(w) for w in result["warnings"]) or "No warnings."),
+            "ok",
+        )
         return jsonify(
             {
                 "ok": True,

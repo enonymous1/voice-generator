@@ -32,6 +32,25 @@
     {% for category, message in messages %}
       <div class="flash {{ category }}">{{ message }}</div>
     {% endfor %}
+    {% if messages %}
+    {# The same confirmation, as a dialog that pops up on load: the
+       top-of-page flash goes unnoticed when the user is scrolled down
+       the Setup page. The divs above stay as the no-JS fallback. #}
+    <dialog id="flash-dialog" class="flash-dialog" aria-label="Confirmation">
+      {% for category, message in messages %}
+      <p class="flash {{ category }}">{{ message }}</p>
+      {% endfor %}
+      <form method="dialog"><button class="btn" autofocus>OK</button></form>
+    </dialog>
+    <script>
+    (function () {
+      var d = document.getElementById("flash-dialog");
+      if (!d) return;
+      d.showModal();
+      d.addEventListener("click", function (e) { if (e.target === d) d.close(); });
+    })();
+    </script>
+    {% endif %}
   {% endwith %}
   {% block content %}{% endblock %}
 </main>

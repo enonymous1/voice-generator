@@ -5,6 +5,22 @@ All notable changes to voice-generator, following
 
 ## [Unreleased]
 
+## [0.5.16] — 2026-11-12 (confirmation dialog)
+
+### Added
+- Save/validation confirmations now pop up as a modal dialog on load
+  (native `<dialog>`, OK button, Escape and backdrop click close it)
+  instead of only flashing at the top of the page, where they went
+  unnoticed when the user was scrolled down the Setup page. The
+  top-of-page flash stays as the no-JS fallback, and frozen pages
+  never flash so they get no dialog.
+
+### Fixed
+- The browser-record flow had no confirmation at all after its reload
+  — it flashed nothing, so the save was silent. The record API now
+  flashes the same "Saved refs/….wav" message as an upload, so the
+  dialog shows it on the reloaded page.
+
 ## [0.5.15] — 2026-11-12 (Home link, external links in new tabs)
 
 ### Added
