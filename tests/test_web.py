@@ -65,6 +65,17 @@ def test_synth_page_lists_backends_and_refs(client):
     assert "me — 12.0s, 16000 Hz" in html  # the fixture clip, no transcript yet
 
 
+def test_synth_page_offers_both_script_fills(client):
+    resp = client.get("/synth")
+    html = resp.get_data(as_text=True)
+    # "Use the recording script" fills the demo text; the second button
+    # fills the emotional-range paragraph instead.
+    assert 'id="load-script"' in html
+    assert 'id="load-range-script"' in html
+    assert "Use the emotional-range script" in html
+    assert "/script?id=range" in html
+
+
 def test_setup_page_shows_default_script(client):
     resp = client.get("/setup")
     assert resp.status_code == 200

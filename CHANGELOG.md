@@ -5,7 +5,14 @@ All notable changes to voice-generator, following
 
 ## [Unreleased]
 
-## [0.5.4] — 2026-11-12 (record + upload cards)
+## [0.5.5] — 2026-11-12 (synth page range fill)
+
+### Added
+- The Synthesize page has a second fill button next to "Use the
+  recording script": "Use the emotional-range script" fills the
+  textarea with the emotional-range paragraph (the script the
+  reference will be re-recorded with), so the demo render can use
+  the same text as the reference.
 
 ### Changed
 - Record in the browser and upload are their own cards now. The

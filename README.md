@@ -727,5 +727,8 @@ not.
     microphone button + a square stop button that starts greyed out
     and turns white while recording, and a drag-and-drop upload zone
     alongside the file picker.
-12. v0.6.0 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
+12. **v0.5.5** — a second fill button on the Synthesize page loads
+    the emotional-range paragraph into the textarea, next to "Use the
+    recording script".
+13. v0.6.0 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
     MuseTalk): WAV + manifest in, lip-synced MP4 out.

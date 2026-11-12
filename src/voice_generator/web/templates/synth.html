@@ -20,6 +20,7 @@ from <code>refs/&lt;name&gt;.txt</code> when the Setup page stored one.</p>
   <textarea id="text" name="text" placeholder="Type or paste the script here…"></textarea>
   <div class="btn-row">
     <button type="button" class="secondary" id="load-script">Use the recording script</button>
+    <button type="button" class="secondary" id="load-range-script">Use the emotional-range script</button>
   </div>
 
   <label for="backend">Backend</label>
@@ -88,6 +89,10 @@ from <code>refs/&lt;name&gt;.txt</code> when the Setup page stored one.</p>
   showAdv();
   document.getElementById("load-script").addEventListener("click", function () {
     fetch("{{ url_for('script') }}").then(function (r) { return r.text(); })
+      .then(function (t) { document.getElementById("text").value = t; });
+  });
+  document.getElementById("load-range-script").addEventListener("click", function () {
+    fetch("{{ url_for('script') }}?id=range").then(function (r) { return r.text(); })
       .then(function (t) { document.getElementById("text").value = t; });
   });
 })();
