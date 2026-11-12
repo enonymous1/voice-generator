@@ -20,6 +20,8 @@
   --ok-ink: #137333;
   --err-bg: #fce8e6;
   --err-ink: #a50e0e;
+  --danger-bg: #a50e0e;
+  --danger-ink: #fff;
   --btn-bg: #1a5fb4;
   --rec-bg: #c5221f;
   --stop-on-bg: #ffffff;
@@ -43,6 +45,8 @@
     --ok-ink: #81c995;
     --err-bg: #2d1414;
     --err-ink: #f28b82;
+    --danger-bg: #f28b82;
+    --danger-ink: #3c0a0a;
     --btn-bg: #2b6cb0;
     --rec-bg: #d93025;
     --stop-on-bg: #e8e8e8;
@@ -311,6 +315,15 @@ audio { width: 100%; margin-top: 0.5rem; }
   color: var(--accent);
   border: 1px solid var(--accent);
 }
+
+/* Destructive actions: red, and kept inside the item they act on
+   (the reference detail row), not beside the add controls. */
+.btn.danger {
+  background: var(--danger-bg);
+  color: var(--danger-ink);
+}
+
+.ref-delete-form { margin-top: 1rem; }
 
 .cards {
   display: grid;

@@ -5,6 +5,25 @@ All notable changes to voice-generator, following
 
 ## [Unreleased]
 
+## [0.5.18] — 2026-11-12 (script check + delete references)
+
+### Added
+- The Add-a-reference card now shows which transcript will be saved
+  with the clip — "Transcript saved with this clip: Emotional
+  range — Honestly, I never expected…" — under the name field, and
+  the line follows the script radio live, so a wrong selection is
+  visible before saving. The save confirmation names the transcript
+  too ("Transcript: Emotional range."), so it's caught right after
+  saving as well.
+- Saved references can be deleted from their detail row: a red
+  **Delete this reference** button (with a browser confirm first)
+  removes the clip and its transcript. Renders that used the
+  reference keep working — their manifests record what was used.
+
+### Changed
+- The upload/record intake returns the resolved script's title, so
+  the confirmations can name it.
+
 ## [0.5.17] — 2026-11-12 (one Add-a-reference card)
 
 ### Changed

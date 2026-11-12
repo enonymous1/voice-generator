@@ -337,6 +337,21 @@ def _upload(client, name: str, wav_path, filename: str = "clip.wav", script: str
     return client.post("/setup/upload", data=data, content_type="multipart/form-data")
 
 
+def test_setup_page_shows_script_check(client):
+    resp = client.get("/setup")
+    html = resp.get_data(as_text=True)
+    # Under the name field, the check line names the script whose
+    # transcript will be saved with the clip — so a wrong selection is
+    # visible before saving. The radios carry the titles the JS reads
+    # to update the line when the selection changes.
+    assert 'id="script-check"' in html
+    assert "Transcript saved with this clip" in html
+    assert "Emotional range" in html
+    assert "Honestly, I never expected" in html
+    assert 'data-title="Emotional range"' in html
+    assert 'data-title="Harvard sentences"' in html
+
+
 def test_setup_flash_shows_as_dialog(client, project):
     # A save confirmation pops up as a dialog, not just a flash at the
     # top of the page (which goes unnoticed when scrolled down).
@@ -348,6 +363,9 @@ def test_setup_flash_shows_as_dialog(client, project):
     html = page.get_data(as_text=True)
     assert '<dialog id="flash-dialog"' in html
     assert "Saved refs/me2.wav" in html
+    # The confirmation names the transcript that was stored, so a
+    # wrong script selection is caught right after saving too.
+    assert "Transcript: Emotional range" in html
     assert "showModal()" in html
     # An error flash gets the dialog too.
     resp = client.post(
@@ -373,6 +391,43 @@ def test_record_api_flash_shows_dialog_on_reload(client, project):
     html = page.get_data(as_text=True)
     assert '<dialog id="flash-dialog"' in html
     assert "Saved refs/api.wav" in html
+    assert "Transcript: Emotional range" in html
+
+
+def test_setup_delete_removes_ref_and_transcript(client, project):
+    (project / "refs" / "me.txt").write_text("The test transcript.", encoding="utf-8")
+    resp = client.post("/setup/delete", data={"name": "me"})
+    assert resp.status_code == 302
+    assert not (project / "refs" / "me.wav").exists()
+    assert not (project / "refs" / "me.txt").exists()
+    page = client.get("/setup")
+    html = page.get_data(as_text=True)
+    assert "Deleted refs/me.wav and its transcript." in html
+    assert '<dialog id="flash-dialog"' in html
+    # The row is gone too, and its delete form with it.
+    assert ">me</button>" not in html
+    assert 'class="ref-delete-form"' not in html
+
+
+def test_setup_delete_unknown_or_bad_name_errors(client, project):
+    resp = client.post("/setup/delete", data={"name": "nope"})
+    assert resp.status_code == 302
+    page = client.get("/setup")
+    assert "no reference named" in page.get_data(as_text=True)
+    resp = client.post("/setup/delete", data={"name": "../x"})
+    assert resp.status_code == 302
+    page = client.get("/setup")
+    assert "bad reference name" in page.get_data(as_text=True)
+    # Nothing was deleted by either attempt.
+    assert (project / "refs" / "me.wav").is_file()
+
+
+def test_setup_delete_form_in_detail_row(client, project):
+    (project / "refs" / "me.txt").write_text("The test transcript.", encoding="utf-8")
+    html = client.get("/setup").get_data(as_text=True)
+    assert 'class="ref-delete-form"' in html
+    assert "Delete this reference" in html
+    assert 'action="/setup/delete"' in html
 
 
 def test_upload_wav_saves_ref_and_transcript(client, project):

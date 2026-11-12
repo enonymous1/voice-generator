@@ -102,6 +102,29 @@ def save_reference(
     return {"wav": wav_path, "info": info, "warnings": warnings}
 
 
+def delete_reference(*, name: str, refs_dir: Path) -> dict[str, object]:
+    """Delete a saved reference clip and its transcript, if any.
+
+    Raises ValueError when the name is invalid or no such reference
+    exists. Renders that used the reference keep working — their
+    manifests record what was used — but the clip can't be cloned
+    from again until it is re-recorded.
+    """
+    if not valid_name(name):
+        raise ValueError(
+            f"bad reference name {name!r} — use letters, digits, '-' and '_' only"
+        )
+    wav_path = refs_dir / f"{name}.wav"
+    txt_path = refs_dir / f"{name}.txt"
+    if not wav_path.is_file():
+        raise ValueError(f"no reference named {name!r} to delete")
+    wav_path.unlink()
+    had_transcript = txt_path.is_file()
+    if had_transcript:
+        txt_path.unlink()
+    return {"name": name, "had_transcript": had_transcript}
+
+
 def trim_reference(
     *,
     source: Path,

@@ -40,7 +40,13 @@ from flask import (
 from voice_generator.audio import wav_info
 from voice_generator.backends import available_backends
 from voice_generator.web.jobs import JobStore, start_job
-from voice_generator.web.refs import MAX_UPLOAD_BYTES, save_reference, trim_reference, valid_name
+from voice_generator.web.refs import (
+    MAX_UPLOAD_BYTES,
+    delete_reference,
+    save_reference,
+    trim_reference,
+    valid_name,
+)
 from voice_generator.web.scripts import SCRIPTS, get_script
 
 # Which backends take which extra CLI flags from the synth form.
@@ -305,17 +311,20 @@ def create_app(config: WebConfig | None = None) -> Flask:
         with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
             upload.save(tmp.name)
             tmp_path = Path(tmp.name)
+        script = get_script(script_id)
         try:
-            return save_reference(
+            result = save_reference(
                 upload_path=tmp_path,
                 upload_suffix=suffix,
                 name=name.strip(),
                 refs_dir=cfg.refs_dir,
                 # The transcript is the script the user actually read.
-                transcript=get_script(script_id).text,
+                transcript=script.text,
             )
         finally:
             tmp_path.unlink(missing_ok=True)
+        result["script_title"] = script.title
+        return result
 
     @app.post("/setup/upload")
     def setup_upload():
@@ -333,7 +342,23 @@ def create_app(config: WebConfig | None = None) -> Flask:
         flash(
             f"Saved refs/{name}.wav — {info.duration_s:.1f}s, "
             f"{info.sample_rate} Hz, {info.channels}ch. "
+            f"Transcript: {result['script_title']}. "
             + (" ".join(str(w) for w in result["warnings"]) or "No warnings."),
+            "ok",
+        )
+        return redirect(url_for("setup"))
+
+    @app.post("/setup/delete")
+    def setup_delete():
+        name = request.form.get("name") or ""
+        try:
+            result = delete_reference(name=name, refs_dir=cfg.refs_dir)
+        except ValueError as exc:
+            flash(str(exc), "error")
+            return redirect(url_for("setup"))
+        flash(
+            f"Deleted refs/{name}.wav"
+            + (" and its transcript." if result["had_transcript"] else "."),
             "ok",
         )
         return redirect(url_for("setup"))
@@ -388,6 +413,7 @@ def create_app(config: WebConfig | None = None) -> Flask:
         flash(
             f"Saved refs/{name}.wav — {info.duration_s:.1f}s, "
             f"{info.sample_rate} Hz, {info.channels}ch. "
+            f"Transcript: {result['script_title']}. "
             + (" ".join(str(w) for w in result["warnings"]) or "No warnings."),
             "ok",
         )

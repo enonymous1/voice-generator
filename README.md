@@ -489,14 +489,19 @@ Four pages plus a home page:
   non-WAV recording is converted with ffmpeg to 16 kHz mono PCM-16,
   validated the same way `check-ref` validates it, and saved as
   `refs/<name>.wav` with the script text stored as `refs/<name>.txt`.
-  An existing name is refused, never silently overwritten. Saved
-  references are clickable: a row opens a player for the clip and its
-  transcript, so the words can be checked against the audio — and the
-  row holds a trim form that saves a slice (start/end, edited
-  transcript) as a new reference, leaving
+  Under the name field a check line names the script whose transcript
+  will be saved ("Transcript saved with this clip: Emotional
+  range — …"), following the script radio live, and the save
+  confirmation names it too. An existing name is refused, never
+  silently overwritten. Saved references are clickable: a row opens a
+  player for the clip and its transcript, so the words can be checked
+  against the audio — and the row holds a trim form that saves a slice
+  (start/end, edited transcript) as a new reference, leaving
   the original untouched; a Preview trim button plays just the slice
   first, so the transcript can be written to match what the trimmed
-  copy actually says.
+  copy actually says. The row also holds a red Delete this reference
+  button (browser confirm first) that removes the clip and its
+  transcript; renders that used it keep working.
 - **Synthesize** — paste text, pick a backend and a reference clip,
   render. The transcript for a clip comes from its `.txt` file when one
   exists (Qwen3 full cloning, CosyVoice zero-shot, VoxCPM ultimate);
@@ -791,5 +796,9 @@ not.
 24. **v0.5.17** — record and upload are one Add-a-reference card with
     a single shared Reference name, instead of two cards with two
     name fields.
-25. v0.6.0 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
+25. **v0.5.18** — a script-check line under the name field (and the
+    transcript named in the save confirmation) so a wrong script
+    selection is caught before or right after saving; saved
+    references can be deleted from their detail row.
+26. v0.6.0 — the handoff contract with Stage 2 (EchoMimicV3 Flash /
     MuseTalk): WAV + manifest in, lip-synced MP4 out.

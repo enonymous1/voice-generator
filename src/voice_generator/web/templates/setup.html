@@ -25,7 +25,7 @@ automatically.</p>
   <div class="btn-row" role="radiogroup" aria-label="Recording script">
     {% for s in scripts %}
     <label class="script-pick">
-      <input type="radio" name="script-choice" value="{{ s.id }}" {% if loop.first %}checked{% endif %}>
+      <input type="radio" name="script-choice" value="{{ s.id }}" data-title="{{ s.title }}" {% if loop.first %}checked{% endif %}>
       <strong>{{ s.title }}</strong><br>
       <span class="muted">{{ s.blurb }}</span>
     </label>
@@ -57,6 +57,9 @@ automatically.</p>
   already exists is refused — never silently overwritten.</p>
   <label for="ref-name">Reference name</label>
   <input type="text" id="ref-name" name="name" form="upload-form" value="me">
+  <p class="field-hint" id="script-check">Transcript saved with this clip:
+  <strong id="script-check-title">{{ scripts[0].title }}</strong> —
+  <span id="script-check-text">{{ scripts[0].text | truncate(60) }}</span></p>
   <div class="addref-grid">
   <div class="addref-rec">
   <h3>Record in the browser</h3>
@@ -150,6 +153,10 @@ automatically.</p>
           <input type="submit" value="Save trimmed copy">
         </form>
         {% endif %}
+        <form method="post" action="{{ url_for('setup_delete') }}" class="ref-delete-form">
+          <input type="hidden" name="name" value="{{ r.name }}">
+          <button type="submit" class="btn danger">Delete this reference</button>
+        </form>
       </td>
     </tr>
     {% endfor %}
@@ -163,12 +170,21 @@ automatically.</p>
 <script>
 (function () {
   var scriptId = document.getElementById("script-id");
+  var scriptCheckTitle = document.getElementById("script-check-title");
+  var scriptCheckText = document.getElementById("script-check-text");
   document.querySelectorAll('input[name="script-choice"]').forEach(function (radio) {
     radio.addEventListener("change", function () {
       scriptId.value = radio.value;
       document.querySelectorAll(".script-block").forEach(function (block) {
         block.hidden = block.id !== "script-" + radio.value;
       });
+      // The transcript saved with the clip is this script's text, so
+      // the check line under the name field names the script that
+      // will be stored — a wrong selection is visible before saving.
+      var text = document.querySelector("#script-" + radio.value + " .script")
+        .textContent.replace(/\s+/g, " ").trim();
+      scriptCheckTitle.textContent = radio.dataset.title;
+      scriptCheckText.textContent = text.length > 60 ? text.slice(0, 60) + "…" : text;
     });
   });
 
@@ -228,6 +244,18 @@ automatically.</p>
       });
       detail.hidden = !opening;
       btn.setAttribute("aria-expanded", opening ? "true" : "false");
+    });
+  });
+
+  // Delete is destructive: ask first. The form still posts normally,
+  // so without JS there is no confirm — the server only deletes the
+  // named clip and its transcript.
+  document.querySelectorAll(".ref-delete-form").forEach(function (form) {
+    form.addEventListener("submit", function (e) {
+      var name = form.querySelector('input[name="name"]').value;
+      if (!window.confirm("Delete reference '" + name + "'? Its clip and transcript will be removed.")) {
+        e.preventDefault();
+      }
     });
   });
 
