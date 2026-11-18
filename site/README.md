@@ -38,8 +38,8 @@ site to a dark theme, and every page declares
 
 ```json
 {
-  "script": "<exact text of recording-script.txt — keep in sync>",
-  "script_source": "recording-script.txt",
+  "script": "<exact text of the emotional-range paragraph — keep in sync>",
+  "script_source": "emotional-range",
   "expected": ["chatterbox", "qwen3", "cosyvoice", "voxcpm"],
   "samples": [
     {"backend": "voxcpm", "file": "samples/voxcpm.mp3",
@@ -48,9 +48,10 @@ site to a dark theme, and every page declares
 }
 ```
 
-- `script` must match `recording-script.txt` (there is a test for this);
-  the bench must render that script, or the page shows text no backend
-  actually read.
+- `script` must match the emotional-range paragraph
+  (`voice_generator.demo_script.DEMO_SCRIPT` — there is a test for
+  this); the bench must render that script, or the page shows text no
+  backend actually read.
 - `samples` starts empty. After the A/B bench (`tools/ab_compare.py`),
   convert each backend's WAV to MP3 and add one entry per backend.
   `duration_s` and `wall_s` come from the bench's `ab_comparison.json`.

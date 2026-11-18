@@ -47,32 +47,33 @@ install will not fix a broken pipeline.
 ## 2. Record your reference clip (the step that decides quality)
 
 This is the most important step in the whole setup. Clone quality is
-mostly decided here, before any model runs. The web UI's Setup page
-offers two read-aloud texts of its own — the emotional-range paragraph
-and the Harvard sentences — and saves the transcript for you; any of
-the three texts works, the clip is what matters.
+mostly decided here, before any model runs. The Setup page offers two
+read-aloud texts — the emotional-range paragraph and the Harvard
+sentences — and saves the transcript for you.
 
-1. Read [`recording-script.txt`](recording-script.txt) out loud, in a
+1. Read one of the Setup page's scripts out loud — the
+   emotional-range paragraph or the Harvard sentences — in a
    quiet room, microphone 15–30 cm away, in your normal speaking voice
    — not too fast, not too slow, not a "radio voice". No music, no TV,
    no other voices, no clipping.
 2. Record with whatever is at hand: your phone's Voice Recorder, or
-   Windows Sound Recorder. Aim for the whole script (~50 seconds); you
-   will trim it down, and a longer take gives you the cleanest 10–30
-   seconds to keep.
+   Windows Sound Recorder. Aim for the whole passage (the range
+   paragraph is ~30 seconds); you will trim it down, and a longer
+   take gives you the cleanest 10 seconds to keep.
 3. Save it as `refs\me.wav`. If it comes out as MP3/M4A, convert it:
 
    ```powershell
    ffmpeg -i refs\me.m4a -ac 1 -ar 24000 refs\me.wav
    ```
 
-4. **Save the transcript.** `recording-script.txt` *is* the transcript
+4. **Save the transcript.** The text you read *is* the transcript
    — but only of what you actually said. If you read only part of it,
-   copy just that part into `refs\me.txt`. Chatterbox does not need a
-   transcript, but Qwen3-TTS and CosyVoice do, and the transcript must
-   match the audio word for word, fillers and all. VoxCPM2's default
-   controllable mode does not need one either — only its
-   `--voxcpm-mode ultimate` does.
+   copy just that part into `refs\me.txt`. (The Setup page stores it
+   for you automatically when you record or upload there.) Chatterbox
+   does not need a transcript, but Qwen3-TTS and CosyVoice do, and the
+   transcript must match the audio word for word, fillers and all.
+   VoxCPM2's default controllable mode does not need one either — only
+   its `--voxcpm-mode ultimate` does.
 5. Validate the clip before you burn a render on it:
 
    ```powershell

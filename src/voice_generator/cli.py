@@ -152,7 +152,6 @@ def _serve(args: argparse.Namespace) -> int:
     config = WebConfig(
         refs_dir=args.refs_dir,
         output_dir=args.output_dir,
-        script_path=args.script,
         backend_pythons=backend_pythons,
         host=args.host,
         port=args.port,
@@ -269,12 +268,6 @@ def main(argv: list[str] | None = None) -> int:
     p_serve.add_argument("--port", type=int, default=5000)
     p_serve.add_argument("--refs-dir", type=Path, default=Path("refs"))
     p_serve.add_argument("--output-dir", type=Path, default=Path("output"))
-    p_serve.add_argument(
-        "--script",
-        type=Path,
-        default=Path("recording-script.txt"),
-        help="script the Setup page shows (its text is the reference transcript)",
-    )
     p_serve.add_argument(
         "--chatterbox-python", default=None, help="python.exe of the Chatterbox venv"
     )

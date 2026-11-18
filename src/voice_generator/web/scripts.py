@@ -11,28 +11,22 @@ phonetically balanced (IEEE List 5, 1965 revised list — verified
 against the Columbia/McGill copies). The quick-brown-fox line is a
 pangram, not a Harvard sentence; it is included as a useful read-aloud
 line and labeled as such. The project introduction used to be a third
-choice; it was removed — it stays in the repo as
+choice; it was removed in v0.5.3, and its text lived on as
 ``recording-script.txt``, the demo text the synth page and the A/B
-bench render.
+bench rendered. That file was removed in v0.5.22 — the range paragraph
+below is now the demo text too (see ``voice_generator.demo_script``).
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-# The paragraph is one long line on purpose: the stored transcript must
-# be the exact text, with no line breaks the user did not read. It is
-# split across adjacent literals (which concatenate with no separator)
-# only to keep ruff's line-length rule happy.
-RANGE_TEXT = (
-    "Honestly, I never expected to find myself here at 6:45 AM, holding "
-    "a cup of lukewarm coffee and staring at this screen! Do you have any "
-    "idea how long this took? It's been—what, three years?—since the V-12 "
-    "project launched in 2023. We saw a massive 87.5% increase in output, "
-    "which is just... mind-blowing. But hey, let's not get ahead of "
-    "ourselves. If we can maintain this momentum, I genuinely believe the "
-    "next phase will change everything."
-)
+from voice_generator.demo_script import DEMO_SCRIPT
+
+# The range paragraph is the demo script as well as a read-aloud text,
+# so it lives in the core (``demo_script``) and is reused here, not
+# copied: one text, one source of truth.
+RANGE_TEXT = DEMO_SCRIPT
 
 HARVARD_TEXT = """The quick brown fox jumps over the lazy dog.
 A king ruled the state in the early days.

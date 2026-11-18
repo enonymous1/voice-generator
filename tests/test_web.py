@@ -22,6 +22,7 @@ flask = pytest.importorskip("flask")
 from voice_generator.audio import wav_info, write_pcm16_wav  # noqa: E402
 from voice_generator.pipeline import synthesize_script  # noqa: E402
 from voice_generator.web.app import WebConfig, create_app  # noqa: E402
+from voice_generator.web.scripts import RANGE_TEXT  # noqa: E402
 
 SCRIPT = "Hello, this is a test of my cloned voice."
 
@@ -33,11 +34,10 @@ def _tone_wav(path, seconds: float = 12.0, rate: int = 16000) -> None:
 
 @pytest.fixture()
 def project(tmp_path, monkeypatch):
-    """A throwaway project folder: refs/, output/, recording script."""
+    """A throwaway project folder: refs/, output/."""
     monkeypatch.chdir(tmp_path)
     (tmp_path / "refs").mkdir()
     (tmp_path / "output").mkdir()
-    (tmp_path / "recording-script.txt").write_text(SCRIPT, encoding="utf-8")
     _tone_wav(tmp_path / "refs" / "me.wav")
     return tmp_path
 
@@ -47,7 +47,6 @@ def client(project):
     config = WebConfig(
         refs_dir=project / "refs",
         output_dir=project / "output",
-        script_path=project / "recording-script.txt",
     )
     return create_app(config).test_client()
 
@@ -203,7 +202,7 @@ def test_ref_file_serves_wav_and_txt(client, project):
     assert resp.status_code == 200
     assert "The test transcript." in resp.get_data(as_text=True)
     # Traversal, wrong suffix, and missing files are all 404s.
-    assert client.get("/refs/../recording-script.txt").status_code == 404
+    assert client.get("/refs/../secret.txt").status_code == 404
     assert client.get("/refs/me.mp3").status_code == 404
     assert client.get("/refs/nope.wav").status_code == 404
 
@@ -336,9 +335,11 @@ def test_script_endpoint_with_id(client):
 
 
 def test_script_endpoint(client):
+    # No id serves the default script — the range paragraph, which is
+    # also the project's demo text.
     resp = client.get("/script")
     assert resp.status_code == 200
-    assert resp.get_data(as_text=True) == SCRIPT
+    assert resp.get_data(as_text=True) == RANGE_TEXT
 
 
 def _upload(client, name: str, wav_path, filename: str = "clip.wav", script: str | None = None):

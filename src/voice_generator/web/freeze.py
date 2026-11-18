@@ -228,14 +228,10 @@ def freeze_project(
                 src = project / name
                 if src.exists():
                     shutil.copytree(src, work / name)
-            script = project / "recording-script.txt"
-            if script.is_file():
-                shutil.copyfile(script, work / "recording-script.txt")
             seeded_files = seed_mock_data(work)
             config = WebConfig(
                 refs_dir=work / "refs",
                 output_dir=work / "output",
-                script_path=work / "recording-script.txt",
                 research_path=work / "docs" / "research",
             )
             result = freeze_app(config, out, seeded=bool(seeded_files))
@@ -249,7 +245,6 @@ def freeze_project(
     config = WebConfig(
         refs_dir=project / "refs",
         output_dir=project / "output",
-        script_path=project / "recording-script.txt",
         research_path=project / "docs" / "research",
     )
     result = freeze_app(config, out, seeded=False)

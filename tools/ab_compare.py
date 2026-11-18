@@ -16,6 +16,11 @@ Usage:
       --voxcpm-python .venv-voxcpm/Scripts/python.exe ^
       --out-dir output/ab1
 
+  --demo-script renders the built-in demo script (the emotional-range
+  paragraph, ``voice_generator.demo_script.DEMO_SCRIPT``) instead of a
+  file; it needs the project installed in the Python running this tool
+  (``pip install -e .`` in the core venv).
+
 Any backend side may be omitted (that side is skipped), which also makes
 this usable for a single-backend timing run. The VoxCPM2 side runs in
 its default controllable mode (no transcript needed); pass
@@ -29,6 +34,7 @@ import argparse
 import json
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -80,7 +86,12 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(
         description="Render one script through up to four backends and compare"
     )
-    p.add_argument("--script", type=Path, required=True)
+    p.add_argument("--script", type=Path, default=None, help="script file to render")
+    p.add_argument(
+        "--demo-script",
+        action="store_true",
+        help="render the built-in demo script (emotional-range paragraph) instead of a file",
+    )
     p.add_argument("--ref", type=Path, required=True)
     p.add_argument(
         "--ref-text-file", type=Path, default=None, help="reference transcript (Qwen3 side)"
@@ -108,6 +119,28 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--language", default="en", help="language code passed to every backend side")
     p.add_argument("--model-size", default="1.7b", choices=["1.7b", "0.6b"])
     args = p.parse_args(argv)
+    if bool(args.script) == bool(args.demo_script):
+        p.error("give exactly one of --script <file> or --demo-script")
+    # The demo script is a string in the package, not a file — but the
+    # backend CLIs take a --script path, so write it to a temp file and
+    # pass that path to every side. The comparison records the label,
+    # not the temp path (which is meaningless after the run).
+    tmp_dir = None
+    if args.demo_script:
+        try:
+            from voice_generator.demo_script import DEMO_SCRIPT
+        except ImportError:
+            p.error(
+                "--demo-script needs the project installed in this Python "
+                "(pip install -e . in the core venv); or pass --script with a file"
+            )
+        tmp_dir = tempfile.TemporaryDirectory()
+        script_path = Path(tmp_dir.name) / "demo-script.txt"
+        script_path.write_text(DEMO_SCRIPT, encoding="utf-8")
+        script_label = "demo-script (emotional-range paragraph)"
+    else:
+        script_path = args.script
+        script_label = str(args.script)
     if (
         not args.chatterbox_python
         and not args.qwen_python
@@ -127,7 +160,7 @@ def main(argv: list[str] | None = None) -> int:
                 label=f"chatterbox:{args.variant}",
                 python=args.chatterbox_python,
                 backend="chatterbox",
-                script=args.script,
+                script=script_path,
                 ref=args.ref,
                 out_wav=args.out_dir / "chatterbox.wav",
                 extra=["--variant", args.variant, "--language", args.language],
@@ -144,7 +177,7 @@ def main(argv: list[str] | None = None) -> int:
                 label=f"qwen3:{args.model_size}",
                 python=args.qwen_python,
                 backend="qwen3",
-                script=args.script,
+                script=script_path,
                 ref=args.ref,
                 out_wav=args.out_dir / "qwen3.wav",
                 extra=extra,
@@ -164,7 +197,7 @@ def main(argv: list[str] | None = None) -> int:
                 label="cosyvoice:3",
                 python=args.cosy_python,
                 backend="cosyvoice",
-                script=args.script,
+                script=script_path,
                 ref=args.ref,
                 out_wav=args.out_dir / "cosyvoice.wav",
                 extra=extra,
@@ -182,7 +215,7 @@ def main(argv: list[str] | None = None) -> int:
                 label=f"voxcpm:{args.voxcpm_mode}",
                 python=args.voxcpm_python,
                 backend="voxcpm",
-                script=args.script,
+                script=script_path,
                 ref=args.ref,
                 out_wav=args.out_dir / "voxcpm.wav",
                 extra=extra,
@@ -190,7 +223,7 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     comparison = {
-        "script": str(args.script),
+        "script": script_label,
         "reference": str(args.ref),
         "note": "Listen side by side; durations/wall times are diagnostics, not a quality score.",
         "results": results,
@@ -203,6 +236,8 @@ def main(argv: list[str] | None = None) -> int:
         else:
             print(f"{r['backend']}: FAILED ({r['wall_s']}s) — see {out_json}", file=sys.stderr)
     print(f"Comparison: {out_json}")
+    if tmp_dir is not None:
+        tmp_dir.cleanup()
     return 0 if all(r["ok"] for r in results) else 1
 
 

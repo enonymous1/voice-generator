@@ -12,6 +12,8 @@ import re
 from html.parser import HTMLParser
 from pathlib import Path
 
+from voice_generator.demo_script import DEMO_SCRIPT
+
 ROOT = Path(__file__).resolve().parent.parent
 SITE = ROOT / "site"
 
@@ -41,9 +43,8 @@ def _relative_links(html_path: Path) -> list[str]:
 
 def test_samples_json_valid_and_script_matches():
     data = json.loads((SITE / "samples.json").read_text(encoding="utf-8"))
-    assert data["script_source"] == "recording-script.txt"
-    recorded = (ROOT / "recording-script.txt").read_text(encoding="utf-8").strip()
-    assert data["script"].strip() == recorded
+    assert data["script_source"] == "emotional-range"
+    assert data["script"].strip() == DEMO_SCRIPT
     assert data["expected"] == ["chatterbox", "qwen3", "cosyvoice", "voxcpm"]
     assert isinstance(data["samples"], list)
 

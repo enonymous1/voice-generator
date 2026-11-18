@@ -115,8 +115,9 @@ gets a slow render or a clear error, not a cryptic CUDA failure.
 
 New here? Start with [`SETUP.md`](SETUP.md) — the ordered, copy-paste
 path from an empty folder to your first cloned render. This section is
-the same material as reference; the demo script is
-[`recording-script.txt`](recording-script.txt).
+the same material as reference; the demo script is the emotional-range
+paragraph, the passage the A/B bench renders and the listen page
+compares.
 
 ### Core only (5-minute smoke test, no GPU, no models)
 
@@ -271,9 +272,10 @@ Notes:
 ### Recording a good reference clip
 
 Clone quality is mostly decided here, before any model runs. The
-ready-made text to read is [`recording-script.txt`](recording-script.txt)
-(~50 seconds; trim to the cleanest 10–30 s) — it doubles as the
-transcript, so copy what you actually read into `refs\me.txt`.
+ready-made texts to read are on the Setup page — the emotional-range
+paragraph (~30 seconds) or the Harvard sentences. Whichever you read
+doubles as the transcript, so copy what you actually read into
+`refs\me.txt`.
 
 - **Length:** ~10 s for Chatterbox; ~3–10 s for Qwen3 / CosyVoice;
   ~5–10 s for VoxCPM2 (its practical range is 5–30 s).
@@ -583,7 +585,7 @@ voice-generator/
 │       ├── app.py          # app factory + routes (Synthesize/Setup/History)
 │       ├── jobs.py         # background synth jobs (CLI subprocess + live log)
 │       ├── refs.py         # reference-clip intake (ffmpeg convert + validate)
-│       ├── scripts.py      # recording-script options + "why this works" notes
+│       ├── scripts.py      # Setup-page script options + "why this works" notes
 │       ├── templates/      # Jinja2 pages (base, synth, setup, job, history)
 │       └── static/style.css  # system-aware light/dark theme
 ├── tools/

@@ -24,9 +24,9 @@
   as a placeholder recording.</p>
 
   <h2>The script</h2>
-  <p class="muted">This is <code>recording-script.txt</code> from the repo —
-  the same text read aloud for the reference clip, and the same text every
-  backend renders here.</p>
+  <p class="muted">This is the emotional-range script — the same passage
+  the Setup page offers for recording, and the same text every backend
+  renders here.</p>
   <div class="script" id="script">Loading…</div>
 
   <h2>The renders</h2>
@@ -41,7 +41,7 @@
   with one entry per backend in <code>samples.json</code>. The page fills
   in automatically on the next deploy — no HTML edits.</p>
   <pre><code>:: 1. Run the bench (from the project folder, any Python)
-python tools\ab_compare.py --script recording-script.txt --ref refs\me_10s.wav --ref-text-file refs\me_10s.txt --chatterbox-python .venv-chatterbox\Scripts\python.exe --qwen-python .venv-qwen3\Scripts\python.exe --voxcpm-python .venv-voxcpm\Scripts\python.exe --out-dir output\ab1
+python tools\ab_compare.py --demo-script --ref refs\me_10s.wav --ref-text-file refs\me_10s.txt --chatterbox-python .venv-chatterbox\Scripts\python.exe --qwen-python .venv-qwen3\Scripts\python.exe --voxcpm-python .venv-voxcpm\Scripts\python.exe --out-dir output\ab1
 
 :: 2. Convert each WAV to MP3 (one per backend)
 ffmpeg -i output\ab1\chatterbox.wav -codec:a libmp3lame -q:a 4 site\samples\chatterbox.mp3

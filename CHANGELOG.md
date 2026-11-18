@@ -3,10 +3,30 @@
 All notable changes to voice-generator, following
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [0.5.22] — 2026-11-18 (recording-script.txt removed; range paragraph is the demo text)
 
-- `SETUP.md`: step 2 now notes the Setup page's own read-aloud
-  texts (emotional-range paragraph, Harvard sentences) alongside
+### Removed
+- `recording-script.txt` is gone from the project root. The
+  emotional-range paragraph is now the one demo text — it lives as
+  `voice_generator.demo_script.DEMO_SCRIPT` in the core and the Setup
+  page's range script reuses it, so there is one text, not two. The
+  `/script` endpoint serves it with no id; `voice-gen serve --script`
+  and `WebConfig.script_path` are gone with the file; `freeze` no
+  longer copies it.
+
+### Added
+- `tools/ab_compare.py --demo-script` renders the built-in demo
+  script instead of a file (needs the project installed in the Python
+  running the tool). The comparison JSON records the label
+  `demo-script (emotional-range paragraph)`, not the temp path.
+
+### Changed
+- `site/samples.json` now carries the range paragraph
+  (`script_source: "emotional-range"`); the listen page and its
+  instructions say so, and the bench command there is
+  `--demo-script`.
+- `SETUP.md`: step 2 now points at the Setup page's own read-aloud
+  texts (emotional-range paragraph, Harvard sentences) instead of
   `recording-script.txt`; step 7 mentions the Research page and
   `voice-gen freeze`.
 - `[project.urls]` added to `pyproject.toml` (Homepage → the Pages

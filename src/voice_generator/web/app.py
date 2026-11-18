@@ -63,7 +63,6 @@ class WebConfig:
 
     refs_dir: Path = Path("refs")
     output_dir: Path = Path("output")
-    script_path: Path = Path("recording-script.txt")
     research_path: Path = Path("docs/research")
     backend_pythons: dict[str, str] = field(default_factory=dict)
     host: str = "127.0.0.1"
@@ -93,11 +92,6 @@ class WebConfig:
     def python_for(self, backend: str) -> str:
         """Interpreter that runs ``backend`` (default: this server's own)."""
         return self.backend_pythons.get(backend, sys.executable)
-
-    def script_text(self) -> str:
-        if self.script_path.is_file():
-            return self.script_path.read_text(encoding="utf-8")
-        return ""
 
     def list_refs(self) -> list[dict[str, object]]:
         """Reference clips in ``refs_dir``, with validation info."""
@@ -167,15 +161,14 @@ def create_app(config: WebConfig | None = None) -> Flask:
 
     @app.get("/script")
     def script():
-        # ?id=range / ?id=harvard serves a setup script's text; no id
-        # serves recording-script.txt — the demo text the synth page
-        # fills in with "Use the recording script".
-        script_id = request.args.get("id")
-        if script_id:
-            text = get_script(script_id).text
-        else:
-            text = cfg.script_text()
-        return text, 200, {"Content-Type": "text/plain; charset=utf-8"}
+        # Serves a setup script's text by id; no id (or an unknown one)
+        # falls back to the range paragraph — the default script and the
+        # project's demo text.
+        return (
+            get_script(request.args.get("id")).text,
+            200,
+            {"Content-Type": "text/plain; charset=utf-8"},
+        )
 
     @app.route("/synth", methods=["GET", "POST"])
     def synth():

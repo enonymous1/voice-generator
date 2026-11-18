@@ -29,11 +29,10 @@ def _tone_wav(path, seconds: float = 12.0, rate: int = 16000) -> None:
 
 @pytest.fixture()
 def project(tmp_path, monkeypatch):
-    """A throwaway project: refs, a real mock render, script, report, site/."""
+    """A throwaway project: refs, a real mock render, report, site/."""
     monkeypatch.chdir(tmp_path)
     (tmp_path / "refs").mkdir()
     (tmp_path / "output").mkdir()
-    (tmp_path / "recording-script.txt").write_text(SCRIPT, encoding="utf-8")
     _tone_wav(tmp_path / "refs" / "me.wav")
     (tmp_path / "refs" / "me.txt").write_text(SCRIPT, encoding="utf-8")
     synthesize_script(
@@ -140,7 +139,6 @@ def test_freeze_seed_mock_fills_gaps_only(tmp_path, monkeypatch):
     empty = tmp_path / "empty"
     (empty / "refs").mkdir(parents=True)
     (empty / "output").mkdir()
-    (empty / "recording-script.txt").write_text(SCRIPT, encoding="utf-8")
     out = tmp_path / "frozen"
     result = freeze_project(empty, out, seed_mock=True)
     assert result["seeded"] is True
@@ -173,7 +171,6 @@ def test_freeze_without_site_dir(tmp_path, monkeypatch):
     bare = tmp_path / "bare"
     (bare / "refs").mkdir(parents=True)
     (bare / "output").mkdir()
-    (bare / "recording-script.txt").write_text(SCRIPT, encoding="utf-8")
     out = tmp_path / "frozen"
     result = freeze_project(bare, out)
     assert (out / "index.html").is_file()
