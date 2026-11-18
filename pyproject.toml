@@ -14,6 +14,12 @@ requires-python = ">=3.10"
 license = { text = "MIT" }
 dependencies = []
 
+# PEP 621 project links (the repo now exists — added 2026-11-18; the
+# old staff review had deferred this until the remote existed).
+[project.urls]
+Homepage = "https://enonymous1.github.io/voice-generator/"
+Repository = "https://github.com/enonymous1/voice-generator"
+
 [project.optional-dependencies]
 # Each real backend lives in its own extra (and, in practice, its own venv):
 # Chatterbox, CosyVoice, Qwen3-TTS and VoxCPM2 pin conflicting torch /

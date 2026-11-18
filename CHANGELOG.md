@@ -5,6 +5,10 @@ All notable changes to voice-generator, following
 
 ## [Unreleased]
 
+- `[project.urls]` added to `pyproject.toml` (Homepage → the Pages
+  site, Repository → the GitHub repo), per PEP 621 — the old staff
+  review had deferred this until the remote existed, and it does
+  now. No behaviour change; the wheel metadata carries both links.
 - `REVIEW.md` deleted: its fix log was fully redundant with
   CHANGELOG `[0.3.1]` + `tests/test_review.py`, and its live content
   — the deferred-architecture list (§3) and the standing conventions
