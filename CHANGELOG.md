@@ -5,6 +5,10 @@ All notable changes to voice-generator, following
 
 ## [Unreleased]
 
+- `SETUP.md`: step 2 now notes the Setup page's own read-aloud
+  texts (emotional-range paragraph, Harvard sentences) alongside
+  `recording-script.txt`; step 7 mentions the Research page and
+  `voice-gen freeze`.
 - `[project.urls]` added to `pyproject.toml` (Homepage → the Pages
   site, Repository → the GitHub repo), per PEP 621 — the old staff
   review had deferred this until the remote existed, and it does

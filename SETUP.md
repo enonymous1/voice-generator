@@ -47,7 +47,10 @@ install will not fix a broken pipeline.
 ## 2. Record your reference clip (the step that decides quality)
 
 This is the most important step in the whole setup. Clone quality is
-mostly decided here, before any model runs.
+mostly decided here, before any model runs. The web UI's Setup page
+offers two read-aloud texts of its own — the emotional-range paragraph
+and the Harvard sentences — and saves the transcript for you; any of
+the three texts works, the clip is what matters.
 
 1. Read [`recording-script.txt`](recording-script.txt) out loud, in a
    quiet room, microphone 15–30 cm away, in your normal speaking voice
@@ -259,9 +262,13 @@ Harvard sentences), read it aloud in the
 browser (or upload a clip) and it is validated and saved as
 `refs/me.wav` with the transcript stored beside it. **Synthesize** pastes text, picks a backend and a clip, and
 renders in the background with a live log. **History** lists past
-renders. With separate backend venvs, pass them through:
+renders. **Research** shows the fast open voice-cloning models review
+the project is based on. With separate backend venvs, pass them through:
 `voice-gen serve --chatterbox-python .venv-chatterbox\Scripts\python.exe
 --qwen-python .venv-qwen3\Scripts\python.exe --voxcpm-python .venv-voxcpm\Scripts\python.exe`.
+
+To publish a static snapshot of the site (for example to GitHub
+Pages), run `voice-gen freeze` — see Deployment in the README.
 
 ## If something goes wrong
 
