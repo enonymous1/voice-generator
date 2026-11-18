@@ -532,7 +532,7 @@ the system light/dark theme.
 
 ```bat
 pip install -e ".[dev,web]"
-pytest        :: 67 tests, no GPU, no downloads, no torch needed
+pytest        :: 105 tests, no GPU, no downloads, no torch needed
 ruff check src tests tools
 ```
 
@@ -543,7 +543,7 @@ their arguments, so tests pin the exact API contract (e.g. Qwen3's
 prompt is built once and reused; CosyVoice 3's prompt gets the
 `<|endofprompt|>` format, v2's doesn't). If upstream changes its API,
 these tests are where it shows. `tests/test_review.py` pins the fixes
-from the 2026-10-31 staff review (see `REVIEW.md`).
+from the 2026-10-31 staff review (see CHANGELOG `[0.3.1]`).
 
 **Adding a new backend** (the extension point, ~1 hour):
 
@@ -563,7 +563,6 @@ from the 2026-10-31 staff review (see `REVIEW.md`).
 voice-generator/
 ├── pyproject.toml            # package metadata; per-backend extras
 ├── README.md                 # this file
-├── REVIEW.md                 # staff review (2026-10-31) + fix log
 ├── CHANGELOG.md
 ├── LICENSE                   # MIT
 ├── src/voice_generator/
@@ -622,6 +621,62 @@ voice-generator/
 - Chatterbox outputs carry Resemble's imperceptible PerTh watermark —
   disclosed by upstream, not removable, and not a license restriction.
 
+### Deferred architecture
+
+Decisions from the 2026-10-31 staff review, deferred with reasons —
+not open defects. Each is a design decision, not a drive-by refactor,
+and the fix log for the review itself lives in CHANGELOG `[0.3.1]`
+(pinned by `tests/test_review.py`).
+
+1. **Backend metadata registry.** License, transcript requirement,
+   min-reference, and install hint currently live in each backend
+   class and in scattered CLI/help text. The next step is a
+   `BackendInfo` dataclass on the registry that `doctor`,
+   `check-ref`, and the CLI derive from — so `check-ref` can warn
+   per-backend ("Chatterbox wants ~10 s, you gave 3 s") instead of
+   one generic ideal. Deferred: it changes the backend constructor
+   surface and deserves its own PR with tests.
+2. **Plugin entry points.** Out-of-tree backends currently require
+   editing `backends/__init__.py`. A `voice_generator.backends`
+   entry-point group would let a third-party backend package register
+   itself. Deferred: no third-party backend exists yet; adding the
+   mechanism before the first consumer is speculative generality.
+3. **Logging instead of prints.** The pipeline prints progress and
+   warnings to stdout, which is fine for a CLI but unusable as a
+   library (Stage 2 embedding). The migration is `logging` with a
+   CLI handler that preserves today's output format exactly.
+   Deferred: a behaviour change that should ship with its own test.
+4. **Model manager abstraction.** Downloads, cache verification, and
+   version pinning are currently implicit in each engine's
+   `from_pretrained` call. A thin `ModelStore` (resolve → download →
+   verify → path) would make offline-first operation explicit and
+   testable. Deferred: each engine's download mechanism differs
+   enough that a premature abstraction would leak.
+5. **CosyVoice `sys.path` mutation.** The backend inserts the clone
+   root at `sys.path[0]` for the process lifetime. Fine for a CLI
+   run; a library embedding two CosyVoice versions (or a name
+   collision with another package) would break. The fix is
+   importlib-based loading from the clone path. Deferred: no
+   embedding use case yet.
+6. **Sentence tokenization.** `chunk_script` splits after
+   abbreviations ("Dr. Smith") and decimals. A proper tokenizer
+   (a small abbreviation list, or an optional `nltk`/`spaCy` extra)
+   would fix it, but adds a dependency to a stdlib-only core.
+   Deferred: the limitation is documented in `text.py` until a real
+   script hits it.
+7. **Streaming / chunked output and resume.** Today a failed chunk
+   means re-running the script (chunks are kept, but nothing resumes
+   from them). A `--resume` flag keyed on the `.parts` folder +
+   manifest is the natural next step. Deferred: needs a manifest
+   state machine, not a flag.
+
+Standing conventions from the same review: docstrings explain the
+why and the contract, not the what. Gates are pytest + `ruff check`
+(expanded rules E/F/W/I/UP/B); `ruff format` is deliberately not
+enforced (it would reflow the whole tree in one diff) and there is no
+mypy gate (it would need `py.typed` + stubs for the untyped upstream
+packages).
+
 ## Deployment
 
 This is a local CLI, not a service — "deployment" means getting it
@@ -674,7 +729,7 @@ run on the target GPU box.
 no remote model serving in this project. If a future Stage 2 service
 needs this as a library, import `voice_generator.pipeline` (not the
 CLI) and note the CosyVoice backend's `sys.path` mutation — see
-`REVIEW.md` §3 for the embedding caveat.
+Deferred architecture in Local Development for the embedding caveat.
 
 **Licenses:** this project is MIT. Chatterbox: MIT (code + weights).
 Qwen3-TTS: Apache-2.0. CosyVoice 2/3: Apache-2.0. VoxCPM2: Apache-2.0

@@ -5,6 +5,13 @@ All notable changes to voice-generator, following
 
 ## [Unreleased]
 
+- `REVIEW.md` deleted: its fix log was fully redundant with
+  CHANGELOG `[0.3.1]` + `tests/test_review.py`, and its live content
+  — the deferred-architecture list (§3) and the standing conventions
+  (docstrings explain the why, `ruff check` but no `ruff format` or
+  mypy gate) — is now a "Deferred architecture" subsection of the
+  README's Local Development section.
+
 ## [0.5.21] — 2026-11-12 (Render page: Listen player + scrollable log)
 
 ### Fixed

@@ -124,7 +124,7 @@ class CosyBackend(BaseBackend):
             # second backend instance in the same process from duplicating
             # entries. Note this mutates global sys.path for the process
             # lifetime — acceptable for a CLI run, a known limitation for
-            # library embedding (see REVIEW.md).
+            # library embedding (see README, Deferred architecture).
             for extra in (self.cosyvoice_home, self.cosyvoice_home / "third_party" / "Matcha-TTS"):
                 if extra.exists() and str(extra) not in sys.path:
                     sys.path.insert(0, str(extra))
