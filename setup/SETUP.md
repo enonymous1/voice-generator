@@ -8,7 +8,15 @@ Target machine: Windows 11, Nvidia RTX 3060 12 GB, 64 GB RAM. The core
 and the mock backend also run on Linux/macOS — the model installs below
 are written for Windows PowerShell.
 
+Fast path: `py setup/check.py` shows which steps are done and which
+are missing, with the fix for each gap. `py setup/install.py --backend
+<name>` does one backend's venv + install for you (core, chatterbox,
+qwen3, voxcpm, web). The steps below are the same work by hand.
+
 ## 0. Before you start
+
+Run `py setup/check.py` first — it checks every item in this section
+and prints the fix for each gap.
 
 You need, in this order:
 
@@ -42,7 +50,9 @@ You should see `output\smoke.wav` and `output\smoke.manifest.json`.
 The mock backend writes a tone, not speech — its job is only to prove
 the CLI, chunking, WAV output, and manifest all work before you install
 a model. If this step fails, stop here and fix it first: a model
-install will not fix a broken pipeline.
+install will not fix a broken pipeline. Or let the installer do it:
+`py setup/install.py --backend core` — it creates the venv, installs
+the package, and runs the mock render, then verifies the result.
 
 ## 2. Record your reference clip (the step that decides quality)
 
@@ -99,6 +109,9 @@ py -3.11 -m venv .venv-chatterbox
 pip install -e ".[chatterbox]"
 voice-gen doctor
 ```
+
+Or `py setup/install.py --backend chatterbox` — the same steps, plus
+the CUDA-torch check and fix below, applied automatically.
 
 `doctor` should report torch with CUDA available and your GPU's VRAM.
 Double-check with the explicit test — it must print `True`:
@@ -168,6 +181,8 @@ python -c "import torch; print(torch.cuda.is_available())"
 voice-gen synth --backend qwen3 --script script.txt --ref refs\me.wav --ref-text-file refs\me.txt --out output\ep1_qwen.wav
 ```
 
+Or `py setup/install.py --backend qwen3`.
+
 The `torch.cuda.is_available()` check must print `True` — same
 CPU-only-torch trap as step 3, same fix (`pip install torch
 torchvision torchaudio --index-url
@@ -200,6 +215,8 @@ pip install -e ".[voxcpm]"
 python -c "import torch; print(torch.cuda.is_available())"
 voice-gen synth --backend voxcpm --script script.txt --ref refs\me_10s.wav --out output\ep1_voxcpm.wav
 ```
+
+Or `py setup/install.py --backend voxcpm`.
 
 The `torch.cuda.is_available()` check must print `True` — same
 CPU-only-torch trap as step 3, same fix (the cu121 install above).
@@ -237,7 +254,10 @@ voice-gen synth --backend voxcpm --script script.txt --ref refs\me_10s.wav --ref
 Only worth it for multilingual work or Chinese dialects, after the
 first two engines sound good. It is not a pip package: recursive git
 clone + Conda Python 3.10 env + `requirements.txt` + sox, and it is the
-fiddliest Windows install of the four. Full instructions are in the
+fiddliest Windows install of the four. The installer does not cover
+CosyVoice — Conda + a repo clone do not reduce to the same one-liner.
+`py setup/check.py` verifies the Conda env, the clone, and SoX
+instead. Full instructions are in the
 README under "Install: CosyVoice 3 (advanced)". If it fights you, that
 is expected — Chatterbox and Qwen3 already cover most use cases.
 
@@ -256,6 +276,9 @@ Same pipeline, behind a form instead of flags:
 pip install -e ".[web]"
 voice-gen serve
 ```
+
+Or `py setup/install.py --backend web` — it installs the core first
+if needed, then the web extra.
 
 Open http://127.0.0.1:5000/ — localhost only. **Setup** shows the
 recording script: pick one of two (emotional-range paragraph,
@@ -291,3 +314,5 @@ Pages), run `voice-gen freeze` — see Deployment in the README.
   (transcript errors, sox/matcha errors, wrong-language output, …).
 - If a render errors out, keep the exact error text — that is what a
   diagnosis needs.
+- `py setup/check.py` re-checks every step above and prints the fix
+  for each gap — run it after any fix to confirm it landed.

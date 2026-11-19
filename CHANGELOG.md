@@ -3,6 +3,35 @@
 All notable changes to voice-generator, following
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.5.23] — 2026-11-19 (setup/ directory: checker + installers)
+
+### Added
+- `setup/` — the setup guide now lives with the scripts that do and
+  verify it. `py setup/check.py` (stdlib-only, read-only) checks every
+  SETUP.md step — Pythons 3.11/3.12, git, ffmpeg, each venv with CUDA
+  torch and its backend importable, the core mock render, the web
+  extra, refs/me.wav + refs/me.txt — and prints the fix for each gap;
+  CosyVoice checks (SoX, Conda, clone, env) are optional and report
+  SKIP, never FAIL. `py setup/install.py --backend <name>` (core,
+  chatterbox, qwen3, voxcpm, web) creates the venv, installs the
+  extra, applies the CUDA-torch fix when torch is CPU-only, and
+  verifies the backend with the same checks; re-runnable, never
+  deletes anything. Per-backend venvs can be overridden
+  (`--chatterbox-python …`) for a shared-venv layout. CosyVoice is
+  check-only — Conda + a repo clone do not reduce to the same
+  one-liner.
+- `tests/test_setup.py` — 14 tests, everything mocked at the
+  subprocess boundary (including ffmpeg's exit-8-with-version-text
+  behaviour, which the checker must not call "not found").
+
+### Changed
+- `SETUP.md` moved to `setup/SETUP.md`; each step now names its
+  `install.py` one-liner next to the manual commands, and the
+  troubleshooting section ends with "run check.py after any fix".
+- README link + layout tree point at `setup/`; the tree also gains
+  the two lines it was missing (`demo_script.py`, web `freeze.py`).
+- CI's ruff gate now covers `setup/` too.
+
 ## [0.5.22] — 2026-11-18 (recording-script.txt removed; range paragraph is the demo text)
 
 ### Removed

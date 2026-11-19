@@ -113,7 +113,7 @@ gets a slow render or a clear error, not a cryptic CUDA failure.
 
 ## Installation
 
-New here? Start with [`SETUP.md`](SETUP.md) — the ordered, copy-paste
+New here? Start with [`setup/SETUP.md`](setup/SETUP.md) — the ordered, copy-paste
 path from an empty folder to your first cloned render. This section is
 the same material as reference; the demo script is the emotional-range
 paragraph, the passage the A/B bench renders and the listen page
@@ -569,6 +569,7 @@ voice-generator/
 ├── LICENSE                   # MIT
 ├── src/voice_generator/
 │   ├── cli.py                # voice-gen: doctor / backends / check-ref / synth
+│   ├── demo_script.py        # DEMO_SCRIPT — the emotional-range paragraph (one demo text)
 │   ├── pipeline.py           # SynthConfig + script → chunks → WAV + manifest
 │   ├── text.py               # sentence chunking
 │   ├── audio.py              # WAV info, reference checks, PCM-16 write, concat
@@ -586,10 +587,15 @@ voice-generator/
 │       ├── jobs.py         # background synth jobs (CLI subprocess + live log)
 │       ├── refs.py         # reference-clip intake (ffmpeg convert + validate)
 │       ├── scripts.py      # Setup-page script options + "why this works" notes
+│       ├── freeze.py       # voice-gen freeze — render the UI to static Pages output
 │       ├── templates/      # Jinja2 pages (base, synth, setup, job, history)
 │       └── static/style.css  # system-aware light/dark theme
 ├── tools/
 │   └── ab_compare.py         # cross-environment A/B rendering
+├── setup/                    # guided setup
+│   ├── SETUP.md              # ordered quickstart (see README > Installation)
+│   ├── check.py              # verify each setup step (py setup/check.py)
+│   └── install.py            # automate venv + install per backend
 ├── .github/workflows/
 │   ├── ci.yml                # GPU-free test suite on push/PR
 │   └── pages.yml             # tests, then deploy site/ to GitHub Pages
