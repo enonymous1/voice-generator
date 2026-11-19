@@ -3,6 +3,20 @@
 All notable changes to voice-generator, following
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Fixed
+- The setup tests failed on Windows CI (7 failures): the fake
+  subprocess in `tests/test_setup.py` only answered the Linux
+  launcher forms (`python3.11 --version`), so every `py -3.11` /
+  `py --version` probe fell through to an empty success and read as
+  "not found". The fake now answers both forms, the collect summary
+  assertion is computed from the results instead of a hardcoded
+  Linux count (py launcher is a check on Windows, a skip elsewhere),
+  and a new test runs the whole collect under `sys.platform ==
+  "win32"`. `setup/check.py` and `setup/install.py` needed no change
+  — they already branch on the platform.
+
 ## [0.5.23] — 2026-11-19 (setup/ directory: checker + installers)
 
 ### Added

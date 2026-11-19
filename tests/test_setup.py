@@ -44,13 +44,19 @@ def _pass_result(check_id: str) -> check.Result:
 def _fake_run_factory(tmp_project: Path):
     """A fake ``check.run``: every probe succeeds, the mock render
     creates its output file, ffmpeg answers with a non-zero exit
-    (the real ffmpeg 8.1.2 behaviour — version text still counts)."""
+    (the real ffmpeg 8.1.2 behaviour — version text still counts).
+    Answers the Python probes in both launcher forms: ``py -3.11``
+    (Windows) and ``python3.11`` (Linux/macOS) — the fake must speak
+    whichever form the code under test uses, or the Windows CI run
+    sees every Python as missing."""
 
     def fake_run(cmd, timeout=120, cwd=None):
         argv = [str(c) for c in cmd]
-        if argv[:2] == ["python3.11", "--version"]:
+        if argv == ["py", "--version"]:
+            return subprocess.CompletedProcess(cmd, 0, "Python 3.12.3\n", "")
+        if "-3.11" in argv or argv[:1] == ["python3.11"]:
             return subprocess.CompletedProcess(cmd, 0, "Python 3.11.9\n", "")
-        if argv[:2] == ["python3.12", "--version"]:
+        if "-3.12" in argv or argv[:1] == ["python3.12"]:
             return subprocess.CompletedProcess(cmd, 0, "Python 3.12.3\n", "")
         if argv[:2] == ["git", "--version"]:
             return subprocess.CompletedProcess(cmd, 0, "git version 2.43.0\n", "")
@@ -191,8 +197,27 @@ def test_collect_all_pass_and_report_zero(tmp_path, monkeypatch, capsys):
     required_failed = [r for r in results if r.status == "FAIL" and not r.optional]
     assert required_failed == []
     assert check.report(results) == 0
-    out = capsys.readouterr().out
-    assert "19 passed, 0 failed, 5 skipped" in out
+    # The counts differ by platform — the py launcher is a real check
+    # on Windows and a skip on Linux/macOS — so assert the summary
+    # from the results instead of a hardcoded string.
+    passed = sum(1 for r in results if r.status == "PASS")
+    skipped = sum(
+        1 for r in results if r.status == "SKIP" or (r.status == "FAIL" and r.optional)
+    )
+    assert f"{passed} passed, 0 failed, {skipped} skipped" in capsys.readouterr().out
+
+
+def test_collect_all_pass_on_windows_forms(tmp_path, monkeypatch):
+    """The Windows launcher forms (``py --version``, ``py -3.11``) run
+    through the same collect and pass — this is the path the Windows
+    CI run exercises, and the fake used to answer it with empty
+    output, which read as 'not found'."""
+    monkeypatch.setattr(check.sys, "platform", "win32")
+    project = _make_project(tmp_path)
+    monkeypatch.setattr(check, "run", _fake_run_factory(project))
+    results = check.collect(project)
+    assert [r for r in results if r.status == "FAIL" and not r.optional] == []
+    assert check.report(results) == 0
 
 
 def test_collect_required_failure_fails_report(tmp_path, monkeypatch):
