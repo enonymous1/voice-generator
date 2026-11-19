@@ -257,6 +257,14 @@ def test_collect_single_venv_override(tmp_path, monkeypatch):
 # --- installer --------------------------------------------------------------
 
 
+def _is_venv_cmd(cmd: list[str]) -> bool:
+    """A ``python -m venv <dir>`` command in either launcher form:
+    ``python3.11 -m venv`` (Linux/macOS) or ``py -3.11 -m venv``
+    (Windows) — the version flag shifts the indices, so match on the
+    tail, not a fixed position."""
+    return "-m" in cmd and len(cmd) >= 2 and cmd[-2] == "venv"
+
+
 def _install_setup(monkeypatch, tmp_path, *, with_core_venv: bool):
     project = tmp_path / "project"
     project.mkdir()
@@ -269,10 +277,10 @@ def _install_setup(monkeypatch, tmp_path, *, with_core_venv: bool):
     def fake_stream(cmd, cwd=None):
         argv = [str(c) for c in cmd]
         calls.append(argv)
-        if argv[1:3] == ["-m", "venv"]:
+        if _is_venv_cmd(argv):
             # Simulate venv creation: the installer checks the
             # interpreter exists afterwards.
-            python = check.venv_python(Path(argv[3]))
+            python = check.venv_python(Path(argv[-1]))
             python.parent.mkdir(parents=True, exist_ok=True)
             python.write_text("# stub\n", encoding="utf-8")
         return 0
@@ -288,15 +296,28 @@ def _install_setup(monkeypatch, tmp_path, *, with_core_venv: bool):
 def test_install_core_reuses_existing_venv(tmp_path, monkeypatch):
     project, calls = _install_setup(monkeypatch, tmp_path, with_core_venv=True)
     assert install.main(["--backend", "core", "--project", str(project)]) == 0
-    assert not any(c[1:3] == ["-m", "venv"] for c in calls), calls
+    assert not any(_is_venv_cmd(c) for c in calls), calls
     assert any(c[-3:] == ["install", "-e", "."] for c in calls), calls
 
 
 def test_install_core_creates_missing_venv(tmp_path, monkeypatch):
     project, calls = _install_setup(monkeypatch, tmp_path, with_core_venv=False)
     assert install.main(["--backend", "core", "--project", str(project)]) == 0
-    assert any(c[1:3] == ["-m", "venv"] for c in calls), calls
-    venv_index = next(i for i, c in enumerate(calls) if c[1:3] == ["-m", "venv"])
+    assert any(_is_venv_cmd(c) for c in calls), calls
+    venv_index = next(i for i, c in enumerate(calls) if _is_venv_cmd(c))
+    pip_index = next(i for i, c in enumerate(calls) if "pip" in c)
+    assert venv_index < pip_index
+
+
+def test_install_core_creates_missing_venv_windows_forms(tmp_path, monkeypatch):
+    """The Windows form of the same path: ``py -3.11 -m venv`` puts
+    ``-m venv`` at indices 2–3, which the fake (and the assertion)
+    used to miss — the two remaining Windows CI failures."""
+    monkeypatch.setattr(check.sys, "platform", "win32")
+    project, calls = _install_setup(monkeypatch, tmp_path, with_core_venv=False)
+    assert install.main(["--backend", "core", "--project", str(project)]) == 0
+    assert any(c[:2] == ["py", "-3.11"] and _is_venv_cmd(c) for c in calls), calls
+    venv_index = next(i for i, c in enumerate(calls) if _is_venv_cmd(c))
     pip_index = next(i for i, c in enumerate(calls) if "pip" in c)
     assert venv_index < pip_index
 

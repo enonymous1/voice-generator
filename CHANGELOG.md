@@ -16,6 +16,13 @@ All notable changes to voice-generator, following
   and a new test runs the whole collect under `sys.platform ==
   "win32"`. `setup/check.py` and `setup/install.py` needed no change
   — they already branch on the platform.
+- Two Windows CI failures remained after that fix: the fake only
+  recognised `python -m venv` with `-m venv` at indices 1–2, but
+  the Windows form is `py -3.11 -m venv`, so the simulated venv
+  creation never ran and `ensure_venv` rightly reported it failed.
+  Venv commands are now matched on their tail (`-m venv <dir>`) in
+  both the fake and the assertions, and a new test runs the
+  venv-creation path under `sys.platform == "win32"`.
 
 ## [0.5.23] — 2026-11-19 (setup/ directory: checker + installers)
 
