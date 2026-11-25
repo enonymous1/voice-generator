@@ -514,7 +514,10 @@ def test_run_backend_missing_interpreter_records_failed_side(tmp_path, monkeypat
         extra=[],
     )
     assert result["ok"] is False
-    assert "/nonexistent/python.exe" in result["error"]
+    # Compare against the path as this platform spells it: on Windows
+    # Path("/nonexistent/python.exe") stringifies with backslashes, so
+    # the POSIX literal never appears in the error.
+    assert str(Path("/nonexistent/python.exe")) in result["error"]
 
 
 def test_run_backend_timeout(tmp_path, monkeypatch):
@@ -789,10 +792,13 @@ def test_workflows_agree_and_cache():
 def test_dependency_pins():
     """Web/dev deps are pinned to the versions verified on this box
     (Flask 3.1.3, Markdown 3.11.3, pytest 9.2.0, ruff 0.17.3).
-    Backend packages are NOT pinned from here — no invented versions."""
+    Backend packages are NOT pinned from here — no invented versions.
+    The markdown floor is 3.10, not 3.11: markdown 3.11+ requires
+    Python >=3.11 and the matrix still tests 3.10 (a 3.11 floor broke
+    the 3.10 install outright in the v0.5.24 CI run)."""
     text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     assert 'requires-python = ">=3.10,<3.14"' in text
-    for pinned in ("flask>=3.1,<4", "markdown>=3.11,<4", "pytest>=9,<10", "ruff>=0.17,<0.18"):
+    for pinned in ("flask>=3.1,<4", "markdown>=3.10,<4", "pytest>=9,<10", "ruff>=0.17,<0.18"):
         assert pinned in text, pinned
     assert "qwen-tts>=" not in text and "voxcpm>=" not in text
     assert "chatterbox-tts>=" not in text

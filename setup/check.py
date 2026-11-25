@@ -103,10 +103,23 @@ class Result:
 
 
 def run(cmd: list[str], *, timeout: int = 120, cwd: Path | None = None):
-    """Run ``cmd``; never raises — a missing binary or timeout is a failed run."""
+    """Run ``cmd``; never raises — a missing binary or timeout is a failed run.
+
+    Output is decoded as UTF-8 with replacement: ``text=True`` alone
+    would use the locale encoding (cp1252 on Windows), under which the
+    test bytes ``\\xff\\xfe`` decode cleanly and the replacement never
+    fires — the pin is what makes undecodable output behave the same
+    on every platform.
+    """
     try:
         return subprocess.run(
-            cmd, capture_output=True, text=True, errors="replace", timeout=timeout, cwd=cwd
+            cmd,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout,
+            cwd=cwd,
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
         return subprocess.CompletedProcess(cmd, 1, "", str(exc))

@@ -3,6 +3,39 @@
 All notable changes to voice-generator, following
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.5.25] — 2026-11-25 (v0.5.24 CI fixes: Python 3.10 install + Windows tests)
+
+The v0.5.24 push went red on 4 of 8 CI jobs (ubuntu 3.10, all three
+Windows). The Pages site deployed fine throughout — only the test
+workflow failed.
+
+### Fixed
+- `markdown>=3.11,<4` cannot install on Python 3.10: markdown 3.11+
+  requires Python >=3.11, and the newest version for 3.10 is 3.10.3,
+  so the 3.10 install step failed outright. The floor is now
+  `markdown>=3.10,<4` — pip resolves 3.10.3 on Python 3.10 and the
+  latest 3.11.x on 3.11+. Verified both ways with a `--python-version
+  3.10` dry run (new pin resolves to 3.10.3; old pin reproduces the
+  CI error) and by running the web + freeze tests against markdown
+  3.10.3 in a scratch venv (56 passed).
+- `project.license` as a TOML table is deprecated (setuptools warning
+  in the same log, hard failure after 2027-02-18). It is now the SPDX
+  string `license = "MIT"`, with the build requirement raised to
+  `setuptools>=77`, which the string form needs. The built wheel
+  carries `License-Expression: MIT`.
+- Two Windows-only test failures in `tests/test_fixes_setup.py`:
+  `check.run` decoded subprocess output with `text=True` alone, which
+  uses the locale encoding — cp1252 on Windows decodes the test bytes
+  `\\xff\\xfe` cleanly, so the `errors="replace"` path never fired and
+  no replacement character appeared. Output is now decoded as UTF-8
+  with replacement in both `setup/check.py::run` and the matching call
+  in `tools/ab_compare.py`, so undecodable bytes behave identically
+  on every platform. The missing-interpreter test asserted a POSIX
+  path literal that Windows `Path` stringifies with backslashes; it
+  now asserts against `str(Path(...))` on the platform under test.
+  (One was a real code bug, one a test bug — both in the v0.5.24
+  additions, both fixed here.)
+
 ## [0.5.24] — 2026-11-25 (full code review: bugs, fragile spots, docstrings)
 
 A line-by-line review of the whole project (core, all five backends, the

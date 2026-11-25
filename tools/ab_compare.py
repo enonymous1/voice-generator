@@ -84,7 +84,13 @@ def _run_backend(
     started = time.time()
     try:
         proc = subprocess.run(
-            cmd, capture_output=True, text=True, errors="replace", check=False, timeout=timeout
+            cmd,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",  # same pin as setup/check.py run(): the
+            errors="replace",  # locale encoding (cp1252 on Windows)
+            check=False,  # would decode non-UTF-8 bytes cleanly instead
+            timeout=timeout,  # of replacing them
         )
     except subprocess.TimeoutExpired:
         wall = round(time.time() - started, 2)

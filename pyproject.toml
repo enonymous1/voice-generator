@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -11,7 +11,7 @@ dynamic = ["version"]
 description = "Local, FOSS voice cloning from a text script — Stage 1 of the AI Digital Twin pipeline"
 readme = "README.md"
 requires-python = ">=3.10,<3.14"
-license = { text = "MIT" }
+license = "MIT"
 dependencies = []
 
 # PEP 621 project links (the repo now exists — added 2026-11-18; the
@@ -49,8 +49,12 @@ voxcpm = ["voxcpm"]
 # renders the research report on the Research page (and in freeze).
 # Pinned to the versions verified on the dev box (Flask 3.1.3,
 # Markdown 3.11.3): >=x,<next-major, so a fresh install cannot pull a
-# breaking major.
-web = ["flask>=3.1,<4", "markdown>=3.11,<4"]
+# breaking major. The markdown floor is 3.10, not 3.11: markdown 3.11+
+# requires Python >=3.11, and the CI matrix still tests 3.10, so a
+# 3.11 floor made the 3.10 install fail outright (2026-11-25, v0.5.24
+# CI). With >=3.10 pip resolves 3.10.3 on Python 3.10 and the latest
+# 3.11.x on 3.11+.
+web = ["flask>=3.1,<4", "markdown>=3.10,<4"]
 dev = ["pytest>=9,<10", "ruff>=0.17,<0.18"]
 
 [project.scripts]
