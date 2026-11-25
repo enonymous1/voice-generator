@@ -45,7 +45,7 @@
     <script>
     (function () {
       var d = document.getElementById("flash-dialog");
-      if (!d) return;
+      if (!d || !d.showModal) return; // no <dialog>: the divs above still show
       d.showModal();
       d.addEventListener("click", function (e) { if (e.target === d) d.close(); });
     })();

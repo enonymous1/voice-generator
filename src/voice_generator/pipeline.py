@@ -4,20 +4,26 @@ The manifest is the contract with Stage 2: it records exactly which backend,
 reference clip and settings made the audio, chunk by chunk, with durations —
 so a lip-sync render can always be traced back to its voice settings.
 
-Design note: ``synthesize_script`` is the stable public entry point and
-keeps its keyword arguments for callers and tests. ``SynthConfig`` is the
-single object the run actually passes around; new options are added to
-the dataclass, not to a growing parameter list, and ``backend_kwargs()``
-is the one place that translates generic options into per-backend
-constructor arguments — adding a fourth backend means extending that
-method (and the CLI), not touching the render loop.
+Design note: ``synthesize_script`` is the stable public entry point; it
+takes the three required options explicitly and forwards the rest through
+``**overrides`` to ``SynthConfig`` (unknown keys are rejected, not silently
+dropped), so a new option is added to the dataclass only — the old design
+listed all 22 fields three times (dataclass, signature, forwarding), and a
+field added in one place but missed in the forwarding was silently dropped
+by the public API. ``SynthConfig`` is the single object the run actually
+passes around, and ``backend_kwargs()`` is the one place that translates
+generic options into per-backend constructor arguments — adding a fourth
+backend means extending that method (and the CLI), not touching the render
+loop.
 """
 
 from __future__ import annotations
 
 import json
 import os
-from dataclasses import dataclass
+import shutil
+import tempfile
+from dataclasses import dataclass, fields
 from pathlib import Path
 
 from voice_generator.audio import WavInfo, check_reference, concat_wavs, wav_info
@@ -26,8 +32,8 @@ from voice_generator.backends.base import SynthesisRequest
 from voice_generator.text import chunk_script
 
 MANIFEST_VERSION = 1
-"""Bump when the manifest schema changes incompatibly; Stage 2 must accept
-missing ``manifest_version`` as version 0 (pre-review manifests)."""
+# Bump when the manifest schema changes incompatibly; Stage 2 must accept
+# missing ``manifest_version`` as version 0 (pre-review manifests).
 
 
 @dataclass
@@ -92,6 +98,13 @@ class SynthConfig:
 
 @dataclass
 class RunResult:
+    """What one ``synthesize_script`` run produced.
+
+    ``duration_s`` is the total length of the finished WAV, not a per-chunk
+    figure; ``manifest_path`` is the provenance file Stage 2 reads to
+    reproduce (and lip-sync) the render.
+    """
+
     wav_path: Path
     manifest_path: Path
     chunks: int
@@ -103,66 +116,43 @@ def synthesize_script(
     text: str,
     reference_wav: Path | None,
     out_wav: Path,
-    backend_name: str = "chatterbox",
-    variant: str = "turbo",
-    language: str = "en",
-    exaggeration: float = 0.5,
-    cfg_weight: float = 0.5,
-    max_chars: int = 300,
-    work_dir: Path | None = None,
-    ref_text: str | None = None,
-    x_vector_only: bool = False,
-    model_size: str = "1.7b",
-    attn: str | None = None,
-    cosyvoice_home: str | None = None,
-    cosy_model_dir: str | None = None,
-    cosy_mode: str = "zero_shot",
-    cosy_version: str = "3",
-    voxcpm_model: str = "openbmb/VoxCPM2",
-    voxcpm_mode: str = "controllable",
-    voxcpm_cfg: float = 2.0,
-    voxcpm_timesteps: int = 10,
-    voxcpm_optimize: bool = True,
+    **overrides: object,
 ) -> RunResult:
     """Render ``text`` through ``backend_name`` to ``out_wav`` + manifest.
 
-    Raises ``ValueError`` for an empty script or a backend's missing
-    inputs (reference clip, transcript), ``FileNotFoundError`` for a
-    missing reference clip, and ``RuntimeError`` when a backend package
-    is not installed in the current environment. Chunk WAVs are kept in
-    ``work_dir`` (default ``.<stem>.parts`` beside the output) so a failed
-    chunk can be inspected without re-rendering the whole script.
+    The three required options are explicit; every other ``SynthConfig``
+    field is passed as a keyword in ``**overrides`` and forwarded verbatim
+    (unknown keys raise ``TypeError`` — a typo must fail loudly, not vanish
+    into a default). Raises ``ValueError`` for an empty script or a
+    backend's missing inputs (reference clip, transcript),
+    ``FileNotFoundError`` for a missing reference clip, and
+    ``BackendNotInstalledError`` when a backend package is not installed
+    in the current environment. Chunk WAVs are kept in ``work_dir``
+    (default ``.<stem>.parts`` beside the output) so a failed chunk can be
+    inspected without re-rendering the whole script; on success the
+    auto-derived directory is removed again (an explicitly passed
+    ``work_dir`` is always left alone).
     """
-    return _run(
-        SynthConfig(
-            text=text,
-            reference_wav=reference_wav,
-            out_wav=out_wav,
-            backend_name=backend_name,
-            variant=variant,
-            language=language,
-            exaggeration=exaggeration,
-            cfg_weight=cfg_weight,
-            max_chars=max_chars,
-            work_dir=work_dir,
-            ref_text=ref_text,
-            x_vector_only=x_vector_only,
-            model_size=model_size,
-            attn=attn,
-            cosyvoice_home=cosyvoice_home,
-            cosy_model_dir=cosy_model_dir,
-            cosy_mode=cosy_mode,
-            cosy_version=cosy_version,
-            voxcpm_model=voxcpm_model,
-            voxcpm_mode=voxcpm_mode,
-            voxcpm_cfg=voxcpm_cfg,
-            voxcpm_timesteps=voxcpm_timesteps,
-            voxcpm_optimize=voxcpm_optimize,
+    known = {f.name for f in fields(SynthConfig)} - {"text", "reference_wav", "out_wav"}
+    unknown = sorted(set(overrides) - known)
+    if unknown:
+        raise TypeError(
+            "synthesize_script() got unexpected keyword argument(s): " + ", ".join(unknown)
         )
-    )
+    return _run(SynthConfig(text=text, reference_wav=reference_wav, out_wav=out_wav, **overrides))
 
 
 def _run(config: SynthConfig) -> RunResult:
+    """Do one render: chunk, synthesize each chunk, join, write the manifest.
+
+    Kept separate from ``synthesize_script`` so the public wrapper only
+    builds the config and this function owns the render loop. The chunk
+    work directory is removed on success when it was auto-derived (a
+    successful render must not leave its intermediates beside the output
+    forever); on failure it is left in place, exactly so the failed chunk
+    can be inspected, and an explicitly passed ``work_dir`` is never
+    removed — the caller asked for it.
+    """
     if config.reference_wav is not None:
         for warning in check_reference(config.reference_wav):
             print(f"  ! {warning}")
@@ -223,6 +213,12 @@ def _run(config: SynthConfig) -> RunResult:
     }
     manifest_path = config.out_wav.with_suffix(".manifest.json")
     _write_atomic(manifest_path, json.dumps(manifest, indent=2))
+    if config.work_dir is None:
+        # Success, and the work dir was auto-derived: the intermediates
+        # have served their purpose (the joined WAV + manifest are the
+        # render). A shorter re-render used to leave stale chunk files
+        # behind here, silently, on every run.
+        shutil.rmtree(work, ignore_errors=True)
     return RunResult(
         wav_path=config.out_wav,
         manifest_path=manifest_path,
@@ -236,16 +232,30 @@ def _write_atomic(path: Path, content: str) -> None:
 
     A crash mid-write must never leave a half-written manifest: Stage 2
     reads this file as the render's provenance, and a corrupt manifest
-    looks like a corrupt render.
+    looks like a corrupt render. The temp file is unique per call — a fixed
+    ``.tmp`` name let two renders of the same output clobber each other —
+    and fsynced before the rename, so the manifest survives a crash, not
+    just a clean exit. A failed write removes its temp file.
     """
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(content, encoding="utf-8")
-    os.replace(tmp, path)
+    tmp = tempfile.NamedTemporaryFile(
+        mode="w", dir=path.parent, suffix=".tmp", delete=False, encoding="utf-8"
+    )
+    try:
+        with tmp:
+            tmp.write(content)
+            tmp.flush()
+            os.fsync(tmp.fileno())
+    except BaseException:
+        try:
+            os.unlink(tmp.name)
+        except OSError:
+            pass
+        raise
+    os.replace(tmp.name, path)
 
 
 def _copy_single(part: Path, out_wav: Path) -> WavInfo:
-    import shutil
-
+    """Copy a one-chunk render to its output path (a no-op when identical)."""
     out_wav.parent.mkdir(parents=True, exist_ok=True)
     if part.resolve() != out_wav.resolve():
         shutil.copyfile(part, out_wav)

@@ -23,6 +23,14 @@ Seeding: with ``--seed-mock``, the freeze works on a scratch copy of the
 project and fills gaps only — a tone reference when refs/ is empty, two
 mock renders when output/ is empty — so the real refs/ and output/ are
 never polluted. Seeded snapshots say so in their banner.
+
+Privacy guard: a real reference clip is a recording of the user's voice
+and must never be published. An unseeded freeze therefore *refuses*
+when refs/ holds any ``*.wav``; a seeded freeze drops the real clips
+from its scratch copy (only the seeded tone clip reaches the frozen
+site) and says so. The scratch copy's output/ is copied selectively —
+render WAVs and manifests only — so ``.web-jobs/`` scripts and chunk
+dirs never ride along either.
 """
 
 from __future__ import annotations
@@ -32,6 +40,7 @@ import re
 import shutil
 import tempfile
 from pathlib import Path
+from urllib.parse import unquote
 
 from flask import render_template
 
@@ -89,13 +98,19 @@ def _rewrite_links(html: str, config: WebConfig) -> tuple[str, list[tuple[Path, 
         if path.startswith("/static/"):
             return f'{attr}="{path[len("/static/"):]}"'
         if path.startswith("/refs/"):
-            name = path[len("/refs/"):]
+            # url_for percent-encodes the name, so unquote it before
+            # using it as a filesystem path — "my%20clip.wav" is not a
+            # file. The href keeps the encoded form (the static server
+            # decodes it back); the copy destination uses the real name.
+            raw_name = path[len("/refs/"):]
+            name = unquote(raw_name)
             media.append((config.refs_dir / name, f"refs/{name}"))
-            return f'{attr}="refs/{name}"'
+            return f'{attr}="refs/{raw_name}"'
         if path.startswith("/outputs/"):
-            name = path[len("/outputs/"):]
+            raw_name = path[len("/outputs/"):]
+            name = unquote(raw_name)
             media.append((config.output_dir / name, f"outputs/{name}"))
-            return f'{attr}="outputs/{name}"'
+            return f'{attr}="outputs/{raw_name}"'
         return match.group(0)  # anything else: leave alone
 
     html = _ATTR_RE.sub(replace, html)
@@ -108,8 +123,11 @@ def _rewrite_links(html: str, config: WebConfig) -> tuple[str, list[tuple[Path, 
 def freeze_app(config: WebConfig, out_dir: str | Path, *, seeded: bool = False) -> dict:
     """Render the Flask app at ``config`` to static files in ``out_dir``.
 
-    Returns ``{"out", "files", "seeded"}``. The app is built fresh here
-    (never the running server), with the FROZEN banner flags set.
+    Returns ``{"out", "files", "seeded", "missing"}`` — ``missing`` lists
+    media the frozen pages reference but that no longer exists on disk,
+    so the caller can warn instead of publishing dead players silently.
+    The app is built fresh here (never the running server), with the
+    FROZEN banner flags set.
     """
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
@@ -147,15 +165,20 @@ def freeze_app(config: WebConfig, out_dir: str | Path, *, seeded: bool = False) 
     (out / _SCRIPT_FILE).write_text(RANGE_TEXT, encoding="utf-8")
     files.append(_SCRIPT_FILE)
 
+    missing: list[str] = []
     for src, rel in media:
         if not src.is_file():
-            continue  # a referenced file that is gone: leave the link broken, don't crash
+            # A referenced file that is gone: leave the link broken, but
+            # record it — a deleted render between page render and copy
+            # used to produce a dead player with no signal at all.
+            missing.append(str(src))
+            continue
         dst = out / rel
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(src, dst)
         files.append(rel)
 
-    return {"out": out, "files": sorted(set(files)), "seeded": seeded}
+    return {"out": out, "files": sorted(set(files)), "seeded": seeded, "missing": sorted(missing)}
 
 
 def seed_mock_data(work_dir: str | Path) -> list[str]:
@@ -208,6 +231,31 @@ def _copy_site_files(project: Path, out: Path) -> list[str]:
     return copied
 
 
+def _copy_output_dir(src: Path, dst: Path) -> None:
+    """Copy an output/ tree for a scratch freeze, selectively.
+
+    Only the files a frozen site can reference — render WAVs and their
+    manifests — are copied. The whole tree used to be copied, which
+    duplicated gigabytes of renders plus the web UI's own ``.web-jobs/``
+    script files and ``.<stem>.parts/`` chunk dirs, none of which any
+    frozen page references.
+    """
+    dst.mkdir(parents=True, exist_ok=True)
+    if not src.is_dir():
+        return
+    for item in src.iterdir():
+        if item.is_file() and (
+            item.suffix.lower() == ".wav" or item.name.endswith(".manifest.json")
+        ):
+            shutil.copyfile(item, dst / item.name)
+
+
+def _print_missing(result: dict) -> None:
+    """Warn about media the frozen pages reference but couldn't copy."""
+    for path in result.get("missing", []):
+        print(f"  warning: referenced file is gone, link left broken: {path}")
+
+
 def freeze_project(
     project_dir: str | Path, out_dir: str | Path, *, seed_mock: bool = False
 ) -> dict:
@@ -215,7 +263,13 @@ def freeze_project(
 
     With ``seed_mock``, the freeze works on a scratch copy and fills gaps
     with mock demo data; without it, the real project is read as-is and
-    never written to. Returns ``{"out", "files", "seeded", "seeded_files"}``.
+    never written to. Returns ``{"out", "files", "seeded", "seeded_files",
+    "excluded_refs", "missing"}``.
+
+    Real reference clips are never published: an unseeded freeze refuses
+    when refs/ holds any ``*.wav`` (use ``--seed-mock`` for a demo
+    snapshot), and a seeded freeze drops the real clips from its scratch
+    copy, so only the seeded tone clip reaches the frozen site.
     """
     project = Path(project_dir)
     out = Path(out_dir)
@@ -224,9 +278,21 @@ def freeze_project(
         try:
             work = tmp / "project"
             work.mkdir()
-            for name in ("refs", "output", "docs"):
+            # Real reference clips are never published: the scratch copy
+            # gets an empty refs/ and seed_mock_data fills it with the
+            # tone demo clip, so the frozen site carries only that.
+            refs_dir = project / "refs"
+            excluded_refs = (
+                sorted(p.name for p in refs_dir.glob("*.wav")) if refs_dir.is_dir() else []
+            )
+            (work / "refs").mkdir()
+            for name in ("output", "docs"):
                 src = project / name
-                if src.exists():
+                if not src.exists():
+                    continue
+                if name == "output":
+                    _copy_output_dir(src, work / name)
+                else:
                     shutil.copytree(src, work / name)
             seeded_files = seed_mock_data(work)
             config = WebConfig(
@@ -236,12 +302,29 @@ def freeze_project(
             )
             result = freeze_app(config, out, seeded=bool(seeded_files))
             result["seeded_files"] = seeded_files
+            result["excluded_refs"] = excluded_refs
             result["files"] = sorted(
                 set(result["files"]) | set(_copy_site_files(project, out))
             )
+            if excluded_refs:
+                print(
+                    "  real references excluded (never published): "
+                    + ", ".join(excluded_refs)
+                )
+            _print_missing(result)
             return result
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
+    refs_dir = project / "refs"
+    if refs_dir.is_dir():
+        real_refs = sorted(p.name for p in refs_dir.glob("*.wav"))
+        if real_refs:
+            raise ValueError(
+                "refs/ contains real reference clips ("
+                + ", ".join(real_refs)
+                + ") — refusing to publish them. Freeze a demo snapshot "
+                "with --seed-mock instead (it publishes only a tone clip)."
+            )
     config = WebConfig(
         refs_dir=project / "refs",
         output_dir=project / "output",
@@ -249,5 +332,7 @@ def freeze_project(
     )
     result = freeze_app(config, out, seeded=False)
     result["seeded_files"] = []
+    result["excluded_refs"] = []
     result["files"] = sorted(set(result["files"]) | set(_copy_site_files(project, out)))
+    _print_missing(result)
     return result

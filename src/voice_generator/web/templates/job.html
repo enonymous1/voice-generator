@@ -34,8 +34,24 @@
   var errorEl = document.getElementById("error");
   // The log starts at its last line when the page opens mid-render.
   logEl.scrollTop = logEl.scrollHeight;
+  var failures = 0;
+  // Jobs live only in server memory, so a server restart orphans this
+  // page: the API 404s, and without the checks below the poller wrote
+  // "Status: undefined" and threw on every tick forever.
+  function unknownJob() {
+    clearInterval(timer);
+    statusEl.textContent = "unknown";
+    errorEl.hidden = false;
+    errorEl.textContent = "This render is no longer known — the server was restarted";
+  }
   var timer = setInterval(function () {
-    fetch("/api/jobs/" + jobId).then(function (r) { return r.json(); }).then(function (j) {
+    fetch("{{ url_for('job_api', job_id=job.id) }}").then(function (r) {
+      if (r.status === 404) throw new Error("unknown-job");
+      if (!r.ok) throw new Error("http-" + r.status);
+      return r.json();
+    }).then(function (j) {
+      failures = 0;
+      if (j.error && j.status === undefined) { unknownJob(); return; }
       statusEl.textContent = j.status;
       // Follow the log only while the reader is already at the bottom,
       // so scrolling up to read doesn't get yanked back down.
@@ -55,6 +71,12 @@
         errorEl.hidden = false;
         errorEl.textContent = j.error || "Render failed.";
       }
+    }).catch(function (err) {
+      if (err && err.message === "unknown-job") { unknownJob(); return; }
+      // A transient network failure: keep polling, but stop after a
+      // few consecutive failures instead of erroring forever.
+      failures += 1;
+      if (failures >= 3) unknownJob();
     });
   }, 1000);
 })();

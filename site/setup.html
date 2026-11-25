@@ -366,7 +366,8 @@ The wide road shimmered in the hot sun.</div>
   var playback = document.getElementById("rec-playback");
   var saveBox = document.getElementById("rec-save");
   var statusEl = document.getElementById("rec-status");
-  var rec = null, chunks = [], stream = null, timer = null, startedAt = 0, blob = null;
+  var rec = null, chunks = [], stream = null, timer = null, startedAt = 0, blob = null,
+    playbackUrl = null;
 
   startBtn.addEventListener("click", function () {
     navigator.mediaDevices.getUserMedia({ audio: true }).then(function (s) {
@@ -377,7 +378,11 @@ The wide road shimmered in the hot sun.</div>
       rec.onstop = function () {
         stream.getTracks().forEach(function (t) { t.stop(); });
         blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
-        playback.src = URL.createObjectURL(blob);
+        // The previous take's playback URL is dropped when a new one is
+        // made, or every recording leaks a blob URL until the page reloads.
+        if (playbackUrl) URL.revokeObjectURL(playbackUrl);
+        playbackUrl = URL.createObjectURL(blob);
+        playback.src = playbackUrl;
         playback.hidden = false;
         saveBox.hidden = false;
       };

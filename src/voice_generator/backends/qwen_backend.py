@@ -26,8 +26,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from voice_generator.audio import wav_info, write_pcm16_wav
+from voice_generator.audio import write_pcm16_wav
 from voice_generator.backends.base import (
+    BackendNotInstalledError,
     BaseBackend,
     SynthesisRequest,
     SynthesisResult,
@@ -56,10 +57,36 @@ _LANGUAGES = {
 
 
 def map_language(language: str) -> str:
-    return _LANGUAGES.get(language.lower(), language[:1].upper() + language[1:])
+    """Map a CLI language code to the full name upstream expects.
+
+    ``generate_voice_clone`` takes full names ("English"), not ISO codes,
+    so ``"en"`` becomes ``"English"``. A full name passed in ("English")
+    is accepted as-is, case-insensitively. Anything else is a caller
+    error: guessing a name (the old fallback title-cased the code) only
+    moved the failure into the model, with an unclear upstream error.
+    """
+    code = language.lower()
+    if code in _LANGUAGES:
+        return _LANGUAGES[code]
+    for full in _LANGUAGES.values():
+        if full.lower() == code:
+            return full
+    raise ValueError(
+        f"unsupported language {language!r} — supported codes: "
+        f"{', '.join(sorted(_LANGUAGES))}"
+    )
 
 
 class Qwen3Backend(BaseBackend):
+    """Qwen3-TTS voice cloning via the Base checkpoints.
+
+    Full (ICL) cloning needs the reference clip AND its exact transcript;
+    without one the caller must use ``x_vector_only`` (speaker-embedding
+    only, lower quality). The clone prompt is built once per reference
+    and cached — the pipeline creates one backend instance per run, so
+    the feature-extraction cost is paid once per script, not per chunk.
+    """
+
     name = "qwen3"
     license = "Apache-2.0"
     min_reference_s = 3.0
@@ -77,6 +104,13 @@ class Qwen3Backend(BaseBackend):
         # where the real cause would be buried under a model-load traceback.
         if dtype not in ("bfloat16", "float16", "float32"):
             raise ValueError(f"dtype must be bfloat16, float16 or float32, got {dtype!r}")
+        # Same fail-fast rule for attention: a typo must not surface as an
+        # upstream error deep inside from_pretrained.
+        if attn_implementation not in ("sdpa", "flash_attention_2", "eager", None):
+            raise ValueError(
+                "attn_implementation must be sdpa, flash_attention_2, eager or None, "
+                f"got {attn_implementation!r}"
+            )
         self.size = size
         self.model_id = _MODELS[size]
         self.device = device
@@ -91,7 +125,7 @@ class Qwen3Backend(BaseBackend):
         try:
             from qwen_tts import Qwen3TTSModel
         except ImportError as exc:
-            raise RuntimeError(
+            raise BackendNotInstalledError(
                 "qwen-tts is not installed in this environment. Install it in its own venv "
                 "(upstream recommends Python 3.12):\n"
                 "  py -3.12 -m venv .venv-qwen3\n"
@@ -117,7 +151,7 @@ class Qwen3Backend(BaseBackend):
     def _prompt(self, request: SynthesisRequest) -> object:
         # Explicit check, not assert: asserts vanish under python -O and
         # this is a user-input validation, not an internal invariant.
-        ref = require_reference(request, "qwen3")
+        ref = require_reference(request, "qwen3", self.min_reference_s)
         key = (str(ref), request.ref_text, request.x_vector_only)
         if key not in self._prompt_cache:
             model = self._load()
@@ -129,7 +163,7 @@ class Qwen3Backend(BaseBackend):
         return self._prompt_cache[key]
 
     def synthesize(self, request: SynthesisRequest, out_wav: Path) -> SynthesisResult:
-        require_reference(request, "qwen3")
+        require_reference(request, "qwen3", self.min_reference_s)
         if not request.x_vector_only and not request.ref_text:
             raise ValueError(
                 "qwen3 full cloning needs the reference transcript: pass --ref-text \"...\" "
@@ -143,11 +177,18 @@ class Qwen3Backend(BaseBackend):
             language=map_language(request.language),
             voice_clone_prompt=prompt,
         )
-        write_pcm16_wav(out_wav, wavs[0], int(sr))
+        # An empty return must fail here, loudly — otherwise a 0-second
+        # WAV is written and reported as a successful render.
+        if wavs is None or len(wavs) == 0 or len(wavs[0]) == 0:
+            raise RuntimeError("qwen3 produced no audio for this chunk")
+        sample_rate = int(sr)
+        # wavs[0] is already an array-like of floats; hand it straight to
+        # the writer instead of flattening it into a Python list first.
+        write_pcm16_wav(out_wav, wavs[0], sample_rate)
         return SynthesisResult(
             wav_path=out_wav,
             backend=f"qwen3:{self.size}",
-            duration_s=wav_info(out_wav).duration_s,
+            duration_s=len(wavs[0]) / sample_rate,
             settings={
                 "model": self.model_id,
                 "language": map_language(request.language),

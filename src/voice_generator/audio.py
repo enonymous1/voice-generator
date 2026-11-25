@@ -3,12 +3,21 @@
 from __future__ import annotations
 
 import wave
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
 
 @dataclass(frozen=True)
 class WavInfo:
+    """Header facts for one WAV file: format plus frame count.
+
+    ``duration_s`` derives from ``frames / sample_rate``; read the header
+    once and pass the info around rather than re-opening the file per
+    question — several callers already know the values and construct this
+    directly instead of re-reading.
+    """
+
     path: Path
     channels: int
     sample_width: int  # bytes per sample
@@ -17,6 +26,7 @@ class WavInfo:
 
     @property
     def duration_s(self) -> float:
+        """Seconds of audio in this file (``frames / sample_rate``)."""
         return self.frames / float(self.sample_rate) if self.sample_rate else 0.0
 
 
@@ -47,20 +57,24 @@ def wav_info(path: str | Path) -> WavInfo:
         ) from exc
 
 
-def check_reference(path: str | Path, *, min_s: float = 3.0, ideal_s: float = 10.0) -> list[str]:
+def check_reference(
+    path: str | Path, *, min_s: float = 3.0, ideal_s: float = 10.0, info: WavInfo | None = None
+) -> list[str]:
     """Validate a voice-clone reference clip. Returns human-readable warnings.
 
     Raises FileNotFoundError / ValueError on hard failures; soft problems
     (too short, stereo, odd sample rate) come back as warnings so the user
     decides, because backends differ: Chatterbox wants ~10 s, CosyVoice /
-    Qwen3-TTS can clone from ~3 s.
+    Qwen3-TTS can clone from ~3 s. Pass ``info`` when the header was already
+    read (e.g. by the CLI, which prints it) so the file is not opened twice.
     """
     p = Path(path)
     if not p.exists():
         raise FileNotFoundError(f"reference clip not found: {p}")
     if p.suffix.lower() != ".wav":
         raise ValueError(f"reference clip must be a .wav file, got: {p.suffix}")
-    info = wav_info(p)
+    if info is None:
+        info = wav_info(p)
     warnings: list[str] = []
     if info.duration_s < min_s:
         warnings.append(
@@ -83,27 +97,41 @@ def check_reference(path: str | Path, *, min_s: float = 3.0, ideal_s: float = 10
     return warnings
 
 
-def write_pcm16_wav(path: str | Path, samples: object, sample_rate: int) -> None:
+_WRITE_BLOCK = 65_536  # samples packed per struct.pack call (see write_pcm16_wav)
+
+
+def write_pcm16_wav(path: str | Path, samples: Iterable[float], sample_rate: int) -> None:
     """Write mono float samples (-1..1) as a PCM-16 WAV, numpy-free.
 
     Backends use this instead of torchaudio/soundfile so every chunk lands in
     exactly the same format and the stdlib WAV concatenation always works.
     Samples are clipped to [-1, 1] (a model overshooting slightly must not
-    wrap around into loud clicks) and packed in one bulk ``struct.pack``
-    call: the previous per-sample loop was the slowest code in the
-    pipeline for long renders (millions of samples).
+    wrap around into loud clicks). Any iterable of numbers is accepted,
+    including numpy arrays and torch tensors — ``float(s)`` is applied per
+    element, so no conversion step is needed before calling this.
+
+    Samples are packed in blocks of ``_WRITE_BLOCK`` instead of one bulk
+    ``struct.pack`` over the whole render: the bulk version built a list of
+    every clipped sample plus a star-unpacked tuple of ints, holding ~30x
+    the output size in transient objects for a long render. Blocking keeps
+    peak memory at one block plus the output bytes, with identical output.
     """
     import struct
 
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
-    clipped = [max(-1.0, min(1.0, float(s))) for s in samples]  # type: ignore[union-attr, arg-type]
-    pcm = struct.pack(f"<{len(clipped)}h", *(int(v * 32767) for v in clipped))
     with wave.open(str(p), "wb") as w:
         w.setnchannels(1)
         w.setsampwidth(2)
         w.setframerate(sample_rate)
-        w.writeframes(pcm)
+        block: list[int] = []
+        for value in samples:
+            block.append(int(max(-1.0, min(1.0, float(value))) * 32767))
+            if len(block) == _WRITE_BLOCK:
+                w.writeframes(struct.pack(f"<{_WRITE_BLOCK}h", *block))
+                block.clear()
+        if block:
+            w.writeframes(struct.pack(f"<{len(block)}h", *block))
 
 
 def trim_wav(src: str | Path, dst: str | Path, *, start_s: float, end_s: float) -> WavInfo:
@@ -135,7 +163,15 @@ def trim_wav(src: str | Path, dst: str | Path, *, start_s: float, end_s: float) 
         dst_w.setsampwidth(info.sample_width)
         dst_w.setframerate(info.sample_rate)
         dst_w.writeframes(frames)
-    return wav_info(dst_p)
+    # The output's format is already known — re-reading the file just
+    # written would only recover what this function computed.
+    return WavInfo(
+        path=dst_p,
+        channels=info.channels,
+        sample_width=info.sample_width,
+        sample_rate=info.sample_rate,
+        frames=end_frame - start_frame,
+    )
 
 
 def concat_wavs(parts: list[Path], out: Path) -> WavInfo:
@@ -153,8 +189,10 @@ def concat_wavs(parts: list[Path], out: Path) -> WavInfo:
         dst.setnchannels(first.channels)
         dst.setsampwidth(first.sample_width)
         dst.setframerate(first.sample_rate)
-        for part in parts:
-            info = wav_info(part)
+        for index, part in enumerate(parts):
+            # The first part's header was already read above; opening it
+            # again would only recover the same values.
+            info = first if index == 0 else wav_info(part)
             if (info.channels, info.sample_width, info.sample_rate) != (
                 first.channels,
                 first.sample_width,

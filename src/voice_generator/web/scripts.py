@@ -37,6 +37,10 @@ The wide road shimmered in the hot sun."""
 
 @dataclass(frozen=True)
 class Script:
+    """One read-aloud text for the Setup page: id, display title, blurb,
+    the "why this works" bullets, and the full passage stored as the
+    clip's transcript."""
+
     id: str
     title: str
     blurb: str

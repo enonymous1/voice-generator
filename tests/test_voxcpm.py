@@ -10,7 +10,7 @@ from typing import ClassVar
 
 import pytest
 
-from voice_generator.audio import wav_info
+from voice_generator.audio import wav_info, write_pcm16_wav
 from voice_generator.backends.base import SynthesisRequest
 from voice_generator.backends.voxcpm_backend import VoxCPM2Backend
 
@@ -64,9 +64,13 @@ def fake_voxcpm(monkeypatch):
 
 
 def _req(tmp_path: Path, **over) -> SynthesisRequest:
+    # require_reference enforces the backend's minimum (5 s for VoxCPM2),
+    # so the fixture clip is a real 10 s WAV.
+    ref = tmp_path / "ref.wav"
+    write_pcm16_wav(ref, [0.0] * (10 * 16000), 16000)
     base = {
         "text": "Hello there.",
-        "reference_wav": tmp_path / "ref.wav",
+        "reference_wav": ref,
         "language": "en",
         "ref_text": "The exact transcript of the reference clip.",
     }

@@ -60,10 +60,13 @@ def project(tmp_path, monkeypatch):
 
 
 def test_freeze_writes_pages_and_rewrites_links(project, tmp_path):
+    # Seeded: the project holds a real reference clip, which must never
+    # be published — the frozen site carries only the seeded tone clip.
     out = tmp_path / "frozen"
-    result = freeze_project(project, out)
-    assert result["seeded"] is False
-    assert result["seeded_files"] == []
+    result = freeze_project(project, out, seed_mock=True)
+    assert result["seeded"] is True
+    assert result["seeded_files"] == ["refs/demo.wav"]
+    assert result["excluded_refs"] == ["me.wav"]
     for name in ("index.html", "synth.html", "setup.html", "history.html", "research.html"):
         assert (out / name).is_file(), name
     assert (out / "style.css").is_file()
@@ -71,7 +74,7 @@ def test_freeze_writes_pages_and_rewrites_links(project, tmp_path):
     # (Collapse whitespace first — the banner text wraps across lines.)
     synth = " ".join((out / "synth.html").read_text(encoding="utf-8").split())
     assert "Static preview" in synth
-    assert "mock demo data" not in synth
+    assert "mock demo data" in synth
     # Absolute links are rewritten to relative file names.
     assert 'href="/synth"' not in synth
     assert 'href="synth.html"' in synth
@@ -81,8 +84,11 @@ def test_freeze_writes_pages_and_rewrites_links(project, tmp_path):
     setup = (out / "setup.html").read_text(encoding="utf-8")
     assert 'action="/setup/upload"' not in setup
     assert 'action="#"' in setup
-    assert 'src="refs/me.wav"' in setup
-    assert (out / "refs" / "me.wav").is_file()
+    # Only the seeded tone clip is published — the real clip is excluded.
+    assert 'src="refs/demo.wav"' in setup
+    assert (out / "refs" / "demo.wav").is_file()
+    assert "me.wav" not in setup
+    assert not (out / "refs" / "me.wav").exists()
     # History links its render + manifest, and both are copied.
     history = (out / "history.html").read_text(encoding="utf-8")
     assert "demo.wav" in history
@@ -99,7 +105,10 @@ def test_freeze_writes_pages_and_rewrites_links(project, tmp_path):
     assert 'data-manifest="/outputs/' not in history
     # The Synthesize button fetches the range script from a static
     # file now, not the live /script route (which 404s on Pages and
-    # used to paste GitHub's 404 page into the textarea).
+    # used to paste GitHub's 404 page into the textarea). This assertion
+    # is load-bearing: the rewrite depends on one exact string literal
+    # in the template, so a template edit that breaks it must fail here
+    # instead of silently shipping a broken button.
     synth_raw = (out / "synth.html").read_text(encoding="utf-8")
     assert 'fetch("script-range.txt")' in synth_raw
     assert 'fetch("/script?id=range")' not in synth_raw
@@ -134,6 +143,17 @@ def test_freeze_writes_pages_and_rewrites_links(project, tmp_path):
     assert (out / "samples.json").is_file()
 
 
+def test_freeze_unseeded_refuses_real_refs(project, tmp_path):
+    # An unseeded freeze with a real reference clip refuses instead of
+    # publishing the user's voice — the old behavior copied it silently.
+    out = tmp_path / "frozen"
+    with pytest.raises(ValueError, match="seed-mock"):
+        freeze_project(project, out)
+    # And the CLI turns the refusal into a clean error, not a traceback.
+    assert main(["freeze", "--project", str(project), "--out", str(out)]) == 1
+    assert not (out / "index.html").exists()
+
+
 def test_freeze_seed_mock_fills_gaps_only(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     empty = tmp_path / "empty"
@@ -157,13 +177,23 @@ def test_freeze_seed_mock_fills_gaps_only(tmp_path, monkeypatch):
     assert list((empty / "output").glob("*")) == []
 
 
-def test_freeze_seed_mock_skips_when_data_exists(project, tmp_path):
+def test_freeze_seed_mock_excludes_real_refs_but_keeps_renders(project, tmp_path):
+    # The project has a real clip and a real (mock-backend) render: the
+    # seeded freeze excludes the clip — only the tone demo clip is
+    # published — but keeps the render, and seeds no mock renders
+    # because a manifest already exists.
     out = tmp_path / "frozen"
     result = freeze_project(project, out, seed_mock=True)
-    assert result["seeded"] is False
-    assert result["seeded_files"] == []
-    assert not (out / "refs" / "demo.wav").exists()
+    assert result["seeded"] is True
+    assert result["seeded_files"] == ["refs/demo.wav"]
+    assert result["excluded_refs"] == ["me.wav"]
+    assert (out / "refs" / "demo.wav").is_file()
+    assert not (out / "refs" / "me.wav").exists()
     assert not (out / "outputs" / "demo_hello.wav").exists()
+    assert (out / "outputs" / "demo.wav").is_file()
+    # The real project was never written to.
+    assert (project / "refs" / "me.wav").is_file()
+    assert not (project / "refs" / "demo.wav").exists()
 
 
 def test_freeze_without_site_dir(tmp_path, monkeypatch):
@@ -180,5 +210,7 @@ def test_freeze_without_site_dir(tmp_path, monkeypatch):
 
 def test_freeze_cli(project, tmp_path):
     out = tmp_path / "frozen"
-    assert main(["freeze", "--project", str(project), "--out", str(out)]) == 0
+    assert main(["freeze", "--project", str(project), "--out", str(out), "--seed-mock"]) == 0
     assert (out / "index.html").is_file()
+    assert (out / "refs" / "demo.wav").is_file()
+    assert not (out / "refs" / "me.wav").exists()

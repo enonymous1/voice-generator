@@ -47,11 +47,13 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from voice_generator.audio import wav_info, write_pcm16_wav
+from voice_generator.audio import write_pcm16_wav
 from voice_generator.backends.base import (
+    BackendNotInstalledError,
     BaseBackend,
     SynthesisRequest,
     SynthesisResult,
+    flatten_mono_samples,
     require_reference,
     resolve_device,
 )
@@ -71,43 +73,40 @@ _SETUP_HINT = (
 )
 
 
-def _flatten_samples(wav: object) -> list[float]:
-    """Turn one generate() return (numpy array, torch tensor, or nested
-    lists) into a flat list of mono float samples, torch-free."""
-    obj = wav
-    if hasattr(obj, "detach"):
-        obj = obj.detach()  # type: ignore[attr-defined]
-    if hasattr(obj, "cpu"):
-        obj = obj.cpu()  # type: ignore[attr-defined]
-    if hasattr(obj, "numpy"):
-        obj = obj.numpy()  # type: ignore[attr-defined]
-    if hasattr(obj, "tolist"):
-        obj = obj.tolist()  # type: ignore[attr-defined]
-    if isinstance(obj, (list, tuple)):
-        if obj and isinstance(obj[0], (list, tuple)):
-            return [float(s) for s in obj[0]]  # first channel
-        return [float(s) for s in obj]
-    raise TypeError(f"unsupported generate() return type: {type(obj).__name__}")
-
-
 def _looks_like_compile_error(exc: BaseException) -> bool:
     """True if an exception smells like a torch.compile / Triton failure.
 
     String-matched on purpose: upstream surfaces these as RuntimeError
     (or a wrapped error) with the failing subsystem in the message, and
-    there is no stable exception type to catch. Kept narrow — a
-    download failure or a bad model id must NOT trigger the optimize
-    fallback, or a real error would be retried and re-reported as a
-    different one.
+    there is no stable exception type to catch. Kept narrow — the tokens
+    name the compile subsystems (Triton, TorchDynamo, TorchInductor,
+    CUDA graphs), so a download failure or a bad model id must NOT
+    trigger the optimize fallback, or a real error would be retried and
+    re-reported as a different one. A bare "compile" substring used to
+    be in the list and matched unrelated errors (a tokenizer or
+    model-file message mentioning compilation), triggering a full
+    multi-GB model reload for nothing — it was removed for that reason.
     """
     text = str(exc).lower()
     return any(
         token in text
-        for token in ("triton", "torch.compile", "inductor", "cudagraph", "compile")
+        for token in ("triton", "torch.compile", "torchdynamo", "inductor", "cudagraph")
     )
 
 
 class VoxCPM2Backend(BaseBackend):
+    """VoxCPM2 voice cloning in controllable or ultimate mode.
+
+    Controllable mode clones from the reference clip alone; ultimate
+    mode passes the same clip as both prompt and reference plus its
+    exact transcript, for maximum similarity. ``optimize`` controls
+    ``torch.compile`` and defaults on (the vendor's speed figures were
+    measured with it); when a load or a first generate fails with a
+    compile/Triton-shaped error, the backend reloads unoptimized and
+    retries once. A second full model load is expensive, so the "retry
+    once" policy is load-bearing — the fallback never retries twice.
+    """
+
     name = "voxcpm"
     license = "Apache-2.0"
     min_reference_s = 5.0  # upstream: 5–30 s is the practical range
@@ -141,45 +140,59 @@ class VoxCPM2Backend(BaseBackend):
         self._optimize_kwarg_supported = True
 
     def _load(self) -> object:
+        """Import the engine and load the model, once, with two fallbacks.
+
+        First, an installed voxcpm that rejects the ``optimize`` keyword
+        is retried without it. Second, a compile/Triton-shaped failure
+        is retried once with ``optimize=False`` — but only with the
+        keyword when this install accepts it, or the retry would raise
+        ``TypeError`` and mask the original compile failure. Either
+        fallback's retry can trigger the other, so both run inside one
+        loop; each fires at most once, so the load is attempted at most
+        three times. Anything else (bad model id, download failure)
+        re-raises untouched. Raises ``BackendNotInstalledError`` when
+        the engine package is missing, so the CLI can tell "not
+        installed" apart from a real engine failure.
+        """
         if self._model is not None:
             return self._model
         try:
             from voxcpm import VoxCPM
         except ImportError as exc:
-            raise RuntimeError(_SETUP_HINT) from exc
+            raise BackendNotInstalledError(_SETUP_HINT) from exc
         kwargs: dict[str, object] = {
             "load_denoiser": False,
             "device": resolve_device(self.device),
         }
         if self._optimize_kwarg_supported:
             kwargs["optimize"] = self.optimize
-        try:
-            self._model = VoxCPM.from_pretrained(self.model_id, **kwargs)
-        except TypeError as exc:
-            # The installed voxcpm does not know the optimize keyword:
-            # retry once without it instead of failing on a kwarg.
-            if self._optimize_kwarg_supported and "optimize" in str(exc):
-                self._optimize_kwarg_supported = False
-                kwargs.pop("optimize")
+        while True:
+            try:
                 self._model = VoxCPM.from_pretrained(self.model_id, **kwargs)
-            else:
+                return self._model
+            except TypeError as exc:
+                # The installed voxcpm does not know the optimize keyword:
+                # retry once without it instead of failing on a kwarg.
+                if self._optimize_kwarg_supported and "optimize" in str(exc):
+                    self._optimize_kwarg_supported = False
+                    kwargs.pop("optimize")
+                    continue
                 raise
-        except Exception as exc:
-            # A compile/Triton failure at load: retry once unoptimized.
-            # Anything else (bad model id, download failure) re-raises
-            # untouched — retrying those would only waste a download.
-            if self.optimize and _looks_like_compile_error(exc):
-                print(
-                    "VoxCPM torch.compile failed at load "
-                    f"({exc}); retrying with optimize=False.",
-                    file=sys.stderr,
-                )
-                self.optimize = False
-                kwargs["optimize"] = False
-                self._model = VoxCPM.from_pretrained(self.model_id, **kwargs)
-            else:
+            except Exception as exc:
+                # A compile/Triton failure at load: retry once unoptimized.
+                # Anything else (bad model id, download failure) re-raises
+                # untouched — retrying those would only waste a download.
+                if self.optimize and _looks_like_compile_error(exc):
+                    print(
+                        "VoxCPM torch.compile failed at load "
+                        f"({exc}); retrying with optimize=False.",
+                        file=sys.stderr,
+                    )
+                    self.optimize = False
+                    if self._optimize_kwarg_supported:
+                        kwargs["optimize"] = False
+                    continue
                 raise
-        return self._model
 
     def _generate(self, request: SynthesisRequest, ref: Path) -> object:
         """One generate() call, with the same optimize fallback as _load.
@@ -216,7 +229,13 @@ class VoxCPM2Backend(BaseBackend):
             raise
 
     def synthesize(self, request: SynthesisRequest, out_wav: Path) -> SynthesisResult:
-        ref = require_reference(request, "voxcpm")
+        """Render one chunk in the selected clone mode.
+
+        Ultimate mode needs the reference transcript (it is the prompt);
+        controllable mode needs only the clip. The reference is validated
+        (exists, at least ``min_reference_s``) before the model loads.
+        """
+        ref = require_reference(request, "voxcpm", self.min_reference_s)
         if self.mode == "ultimate" and not request.ref_text:
             raise ValueError(
                 "voxcpm ultimate mode needs the reference transcript: pass --ref-text \"...\" "
@@ -224,17 +243,17 @@ class VoxCPM2Backend(BaseBackend):
                 "controllable mode (omit --voxcpm-mode)."
             )
         wav = self._generate(request, ref)
-        samples = _flatten_samples(wav)
-        if not samples:
+        samples = flatten_mono_samples(wav)
+        if len(samples) == 0:
             raise RuntimeError("voxcpm produced no audio for this chunk")
         model = self._model
         tts_model = getattr(model, "tts_model", None)
-        sample_rate = int(getattr(tts_model, "sample_rate", _DEFAULT_SAMPLE_RATE))
+        sample_rate = int(getattr(tts_model, "sample_rate", None) or _DEFAULT_SAMPLE_RATE)
         write_pcm16_wav(out_wav, samples, sample_rate)
         return SynthesisResult(
             wav_path=out_wav,
             backend="voxcpm",
-            duration_s=wav_info(out_wav).duration_s,
+            duration_s=len(samples) / sample_rate,
             settings={
                 "model": self.model_id,
                 "mode": self.mode,

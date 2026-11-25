@@ -28,19 +28,48 @@ from pathlib import Path
 
 from voice_generator.audio import check_reference, wav_info
 from voice_generator.backends import BACKEND_IMPORTS, available_backends
+from voice_generator.backends.base import BackendNotInstalledError
 from voice_generator.pipeline import synthesize_script
 
 # Errors the CLI converts to a clean message instead of a traceback.
 # wave.Error covers malformed WAVs; the rest are the documented failure
-# modes of the pipeline and backends.
-EXPECTED_ERRORS = (FileNotFoundError, ValueError, RuntimeError, wave.Error)
+# modes of the pipeline and backends. Bare RuntimeError is deliberately
+# NOT here: backends raise it for genuine engine failures (CUDA OOM,
+# shape mismatches, real bugs), and flattening those into a one-line
+# "user error" would destroy exactly the information needed to diagnose
+# them. Only the dedicated BackendNotInstalledError gets the clean message.
+EXPECTED_ERRORS = (FileNotFoundError, ValueError, BackendNotInstalledError, wave.Error)
 
 
 def _probe(module: str) -> bool:
-    """True if ``module`` imports in this environment, without side effects."""
+    """True if ``module`` can be found without importing it.
+
+    A probe that errors (missing parent package, bad ``__spec__``) counts as
+    not found: ``doctor`` exists to diagnose a broken environment, so it
+    must never crash on one.
+    """
     import importlib.util
 
-    return importlib.util.find_spec(module) is not None
+    try:
+        return importlib.util.find_spec(module) is not None
+    except (ImportError, ValueError):
+        return False
+
+
+def _unit_float(value: str) -> float:
+    """argparse type: a float in [0, 1], the range the engines expect.
+
+    ``--exaggeration`` / ``--cfg`` used to accept any float and pass it
+    straight to the backend, where an out-of-range value failed as a
+    confusing engine error; argparse rejects it here with usage instead.
+    """
+    try:
+        number = float(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"not a number: {value!r}") from None
+    if not 0.0 <= number <= 1.0:
+        raise argparse.ArgumentTypeError(f"must be between 0 and 1, got {value}")
+    return number
 
 
 def _doctor() -> int:
@@ -50,13 +79,22 @@ def _doctor() -> int:
         import torch
 
         print(f"torch    {torch.__version__}")
-        if torch.cuda.is_available():
+        try:
+            cuda_ok = torch.cuda.is_available()
+        except Exception:
+            # A half-broken torch can raise here too; that is a "not
+            # available" verdict, not a reason for doctor to traceback.
+            cuda_ok = False
+        if cuda_ok:
             print(f"cuda     {torch.version.cuda}  GPU: {torch.cuda.get_device_name(0)}")
             total = torch.cuda.get_device_properties(0).total_memory / 2**30
             print(f"vram     {total:.1f} GB")
         else:
             print("cuda     not available — real backends need an Nvidia GPU (mock still works)")
-    except ImportError:
+    except (ImportError, OSError):
+        # A torch install with missing CUDA DLLs raises OSError
+        # ([WinError 126]) on Windows, not ImportError — and that is
+        # precisely the broken environment doctor exists to diagnose.
         print("torch    not installed in this venv (expected unless this is a backend venv)")
     # One probe per backend instead of three hand-written try/except
     # blocks that drifted apart (the old code probed chatterbox/qwen-tts
@@ -66,6 +104,7 @@ def _doctor() -> int:
         "qwen3": 'not installed — pip install -e ".[qwen3]" in its venv',
         "cosyvoice": "not importable here — it lives in its own Conda env + repo clone",
         "voxcpm": 'not installed — pip install -e ".[voxcpm]" in its venv',
+        "mock": "built in — tone only, not speech (always available)",
     }
     for name in available_backends():
         module = BACKEND_IMPORTS[name]
@@ -78,7 +117,14 @@ def _doctor() -> int:
 
 
 def _synth(args: argparse.Namespace) -> int:
-    text = args.text if args.text else args.script.read_text(encoding="utf-8")
+    """Render one script/text to a WAV + manifest via ``synthesize_script``.
+
+    ``--text`` and ``--script`` are mutually exclusive; an empty ``--text``
+    is a real (empty) script, not a missing one, so it is tested with
+    ``is not None`` — the old truthiness test fell through to
+    ``args.script.read_text`` on ``None`` and crashed with AttributeError.
+    """
+    text = args.text if args.text is not None else args.script.read_text(encoding="utf-8")
     ref_text = args.ref_text
     if args.ref_text_file is not None:
         ref_text = args.ref_text_file.read_text(encoding="utf-8").strip()
@@ -111,11 +157,33 @@ def _synth(args: argparse.Namespace) -> int:
     return 0
 
 
+def _is_missing_web_dependency(exc: ImportError) -> bool:
+    """True if ``exc`` is the web UI itself (or Flask/Markdown) missing.
+
+    A bare ``except ImportError`` around the web import misattributes deep
+    failures: a missing transitive dependency *inside* the web package
+    would be reported as "install the web extra" for something already
+    installed. Only the web package itself (or its two declared
+    dependencies) gets the install hint; anything else propagates with
+    its traceback, because it is a real bug.
+    """
+    name = exc.name
+    if name is None:
+        return False
+    return (
+        name == "voice_generator.web"
+        or name.startswith("voice_generator.web.")
+        or name in ("flask", "markdown")
+    )
+
+
 def _freeze(args: argparse.Namespace) -> int:
     """Render the web UI to a static site (default: the project's site/)."""
     try:
         from voice_generator.web.freeze import freeze_project
-    except ImportError:
+    except ImportError as exc:
+        if not _is_missing_web_dependency(exc):
+            raise
         print(
             'Error: freeze needs the web UI — pip install -e ".[web]" in this venv',
             file=sys.stderr,
@@ -132,8 +200,10 @@ def _freeze(args: argparse.Namespace) -> int:
 def _serve(args: argparse.Namespace) -> int:
     """Start the local web UI (Flask, localhost only by default)."""
     try:
-        from voice_generator.web.app import WebConfig, create_app
-    except ImportError:
+        from voice_generator.web.app import WebConfig, _find_project_root, create_app
+    except ImportError as exc:
+        if not _is_missing_web_dependency(exc):
+            raise
         print(
             'Error: the web UI needs Flask — pip install -e ".[web]" in this venv',
             file=sys.stderr,
@@ -149,6 +219,26 @@ def _serve(args: argparse.Namespace) -> int:
         )
         if python
     }
+    # Resolve the default dirs against the project root before creating
+    # them: `voice-gen serve` run from anywhere but the project root used
+    # to silently create an empty refs/ + output/ in the wrong directory.
+    # Explicitly-passed dirs are the caller's choice and stay CWD-relative;
+    # only the defaults are anchored (or refused when no project root is
+    # found above the CWD at all).
+    root = _find_project_root(Path.cwd())
+    if root is not None:
+        if args.refs_dir == Path("refs"):
+            args.refs_dir = root / args.refs_dir
+        if args.output_dir == Path("output"):
+            args.output_dir = root / args.output_dir
+    elif args.refs_dir == Path("refs") or args.output_dir == Path("output"):
+        print(
+            "Error: no voice-generator project found above "
+            f"{Path.cwd()} — run `voice-gen serve` from the project root "
+            "(or pass --refs-dir and --output-dir)",
+            file=sys.stderr,
+        )
+        return 1
     config = WebConfig(
         refs_dir=args.refs_dir,
         output_dir=args.output_dir,
@@ -199,8 +289,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--backend", default="chatterbox", choices=available_backends())
     p.add_argument("--variant", default="turbo", choices=["original", "turbo", "multilingual"])
     p.add_argument("--language", default="en")
-    p.add_argument("--exaggeration", type=float, default=0.5)
-    p.add_argument("--cfg", type=float, default=0.5, dest="cfg_weight")
+    p.add_argument("--exaggeration", type=_unit_float, default=0.5)
+    p.add_argument("--cfg", type=_unit_float, default=0.5, dest="cfg_weight")
     p.add_argument("--max-chars", type=int, default=300)
     p.add_argument(
         "--ref-text",
@@ -304,7 +394,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "check-ref":
             info = wav_info(args.ref)
             print(f"{args.ref}: {info.duration_s:.1f}s, {info.sample_rate} Hz, {info.channels}ch")
-            warnings = check_reference(args.ref)
+            # The header was just read for the line above; pass it along
+            # instead of opening the file a second time.
+            warnings = check_reference(args.ref, info=info)
             for w in warnings:
                 print(f"  ! {w}")
             if not warnings:
@@ -319,7 +411,6 @@ def main(argv: list[str] | None = None) -> int:
     except EXPECTED_ERRORS as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
-    return 2
 
 
 if __name__ == "__main__":

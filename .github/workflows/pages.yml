@@ -26,9 +26,19 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: "pip"
       - run: pip install -e ".[dev,web]"
-      - run: ruff check src tests tools
+      - run: ruff check src tests tools setup
       - run: pytest -q
+      # The committed site/ must be a fresh freeze: a template change
+      # pushed without re-running `voice-gen freeze` would otherwise
+      # deploy stale pages while every gate passes. Freeze to a temp
+      # dir (never in place — that would clobber real samples) and
+      # diff; the freeze is deterministic, so any diff is a stale site.
+      # .gitkeep is excluded: it is a repo placeholder so the empty
+      # samples/ dir is tracked, and the freeze never writes it.
+      - run: voice-gen freeze --out /tmp/frozen-check --seed-mock
+      - run: diff -r --exclude=.gitkeep /tmp/frozen-check site
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

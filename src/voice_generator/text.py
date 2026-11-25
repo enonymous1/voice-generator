@@ -15,6 +15,10 @@ def chunk_script(text: str, *, max_chars: int = 300) -> list[str]:
     than ``max_chars`` is hard-split on commas, then spaces, then
     arbitrarily. ``max_chars`` must be positive: zero or negative would
     make the hard-split loop spin forever (caught here, not in the CLI).
+    Whitespace is collapsed first (``" ".join(text.split())``), so paragraph
+    breaks and line breaks are lost before chunking. The sentence regex also
+    requires whitespace immediately after terminal punctuation, so
+    ``He said "hello." Next...`` does not split — the closing quote blocks it.
     Known limitation, by design: the sentence regex also splits after
     abbreviations ("Dr. Smith") and decimals — fixing that properly needs
     a sentence tokenizer, which the stdlib does not provide.

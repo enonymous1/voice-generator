@@ -15,6 +15,7 @@ produce) gets the same ffmpeg conversion as a fallback.
 
 from __future__ import annotations
 
+import os
 import re
 import shutil
 import subprocess
@@ -29,7 +30,37 @@ MAX_UPLOAD_BYTES = 100 * 1024 * 1024  # 100 MB — a 60 s clip is a few MB
 
 
 def valid_name(name: str) -> bool:
+    """True when ``name`` is safe to use as a file name: ``[A-Za-z0-9_-]``, leading alnum."""
     return bool(_NAME_RE.match(name))
+
+
+def _publish_wav(tmp_wav: Path, wav_path: Path, name: str) -> None:
+    """Move a fully-written temp WAV into place as ``refs/<name>.wav``.
+
+    Prefers ``os.link``: link creation fails if the destination already
+    exists, so a concurrent upload with the same name is refused instead
+    of silently overwriting it (``os.replace`` would overwrite). Falls
+    back to replace-with-recheck on filesystems without hard links
+    (e.g. FAT/exFAT). Either way a failed save leaves no partial clip:
+    the temp file is fully written before this runs, and the caller
+    unlinks it on failure.
+    """
+    try:
+        os.link(tmp_wav, wav_path)
+        return
+    except FileExistsError:
+        raise ValueError(
+            f"a reference named {name!r} already exists — pick another name, "
+            "or delete the old one first"
+        ) from None
+    except OSError:
+        pass  # no hard links on this filesystem: fall back to replace
+    if wav_path.exists():
+        raise ValueError(
+            f"a reference named {name!r} already exists — pick another name, "
+            "or delete the old one first"
+        )
+    os.replace(tmp_wav, wav_path)
 
 
 def _ffmpeg_convert(src: Path, dst: Path) -> None:
@@ -47,6 +78,7 @@ def _ffmpeg_convert(src: Path, dst: Path) -> None:
         [ffmpeg, "-y", "-i", str(src), "-c:a", "pcm_s16le", "-ac", "1", "-ar", "16000", str(dst)],
         capture_output=True,
         text=True,
+        errors="replace",  # ffmpeg stderr can hold non-UTF-8 bytes (paths, locales)
     )
     if proc.returncode != 0:
         raise ValueError(f"ffmpeg could not convert this recording: {proc.stderr.strip()[-500:]}")
@@ -65,7 +97,14 @@ def save_reference(
     ``upload_path`` is a temp file holding the upload; it is not modified
     and is left for the caller to delete. Returns the wav path, its info,
     and any validation warnings. Raises ValueError with a human-readable
-    message on any failure, and leaves no partial files behind.
+    message on any failure.
+
+    Failure atomicity: the transcript is written before the WAV lands, so
+    a clip never exists without its transcript — a lone ``.txt`` from a
+    failed save is invisible (the UI only lists ``.wav``) and is
+    overwritten on retry. The WAV itself is published from a temp file
+    (see ``_publish_wav``), so a failed save leaves no partial clip and
+    a concurrent upload with the same name is refused, not overwritten.
     """
     if not valid_name(name):
         raise ValueError(
@@ -89,16 +128,35 @@ def save_reference(
             candidate = converted
         try:
             info = wav_info(candidate)
-        except wave.Error:
+        except (wave.Error, EOFError, OSError):
             # A WAV the stdlib reader rejects (32-bit float from some
-            # recorders): convert it instead of failing on a format tag.
+            # recorders, or a truncated file): convert it instead of
+            # failing on a format tag. EOFError is the stdlib's answer
+            # to a truncated header — it is not a wave.Error, so the
+            # old except wave.Error let it escape as a 500.
             converted = tmp / "converted.wav"
             _ffmpeg_convert(candidate, converted)
             candidate = converted
-            info = wav_info(candidate)  # raises wave.Error if still unreadable
+            try:
+                info = wav_info(candidate)
+            except (wave.Error, EOFError, OSError) as exc:
+                raise ValueError(
+                    f"this recording is unreadable even after conversion: {exc}"
+                ) from exc
         warnings = check_reference(candidate)
-        shutil.copyfile(candidate, wav_path)
-    (refs_dir / f"{name}.txt").write_text(transcript, encoding="utf-8")
+        # Transcript first: a WAV must never land without its transcript.
+        try:
+            (refs_dir / f"{name}.txt").write_text(transcript, encoding="utf-8")
+        except OSError as exc:
+            raise ValueError(f"could not save the transcript: {exc}") from exc
+        tmp_wav = refs_dir / f".{name}.wav.tmp"
+        try:
+            shutil.copyfile(candidate, tmp_wav)
+            _publish_wav(tmp_wav, wav_path, name)
+        except OSError as exc:
+            raise ValueError(f"could not save the clip: {exc}") from exc
+        finally:
+            tmp_wav.unlink(missing_ok=True)
     return {"wav": wav_path, "info": info, "warnings": warnings}
 
 
@@ -140,8 +198,10 @@ def trim_reference(
     is the caller's responsibility: it must match the trimmed words, so the
     UI lets the user edit it. An empty transcript means no ``.txt`` is
     written (the copy shows "no" transcript). Raises ValueError with a
-    human-readable message on any failure, and leaves no partial files
-    behind.
+    human-readable message on any failure. Like ``save_reference``, the
+    transcript is written before the WAV lands and the WAV is published
+    via ``_publish_wav``, so a failed trim leaves no partial copy and a
+    concurrent trim to the same name is refused.
     """
     if not valid_name(name):
         raise ValueError(
@@ -159,9 +219,24 @@ def trim_reference(
 
     with tempfile.TemporaryDirectory(prefix="voice-gen-trim-") as tmp:
         candidate = Path(tmp) / f"{name}.wav"
-        info = trim_wav(source, candidate, start_s=start_s, end_s=end_s)
+        try:
+            info = trim_wav(source, candidate, start_s=start_s, end_s=end_s)
+        except (wave.Error, EOFError, OSError) as exc:
+            # A truncated source raises EOFError from the stdlib chunk
+            # reader, not wave.Error — without this it escaped as a 500.
+            raise ValueError(f"source reference is unreadable: {exc}") from exc
         warnings = check_reference(candidate)
-        shutil.copyfile(candidate, wav_path)
-    if transcript.strip():
-        (refs_dir / f"{name}.txt").write_text(transcript.strip(), encoding="utf-8")
+        if transcript.strip():
+            try:
+                (refs_dir / f"{name}.txt").write_text(transcript.strip(), encoding="utf-8")
+            except OSError as exc:
+                raise ValueError(f"could not save the transcript: {exc}") from exc
+        tmp_wav = refs_dir / f".{name}.wav.tmp"
+        try:
+            shutil.copyfile(candidate, tmp_wav)
+            _publish_wav(tmp_wav, wav_path, name)
+        except OSError as exc:
+            raise ValueError(f"could not save the clip: {exc}") from exc
+        finally:
+            tmp_wav.unlink(missing_ok=True)
     return {"wav": wav_path, "info": info, "warnings": warnings}

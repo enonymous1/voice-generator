@@ -43,17 +43,28 @@ def _pass_result(check_id: str) -> check.Result:
 
 def _fake_run_factory(tmp_project: Path):
     """A fake ``check.run``: every probe succeeds, the mock render
-    creates its output file, ffmpeg answers with a non-zero exit
-    (the real ffmpeg 8.1.2 behaviour — version text still counts).
-    Answers the Python probes in both launcher forms: ``py -3.11``
-    (Windows) and ``python3.11`` (Linux/macOS) — the fake must speak
-    whichever form the code under test uses, or the Windows CI run
-    sees every Python as missing."""
+    creates its output file and a manifest, ffmpeg answers with a
+    non-zero exit (the real ffmpeg 8.1.2 behaviour — version text
+    still counts). Answers the Python probes in both launcher forms:
+    ``py -3.11`` (Windows) and ``python3.11`` (Linux/macOS) — the fake
+    must speak whichever form the code under test uses, or the Windows
+    CI run sees every Python as missing. The torch probe answers in
+    the probe's own line format (``torch: ok`` / ``cuda: True`` /
+    ``import: ok``), and a venv interpreter's ``--version`` answers
+    per documented venv (3.11 for core/chatterbox, 3.12 for qwen3/
+    voxcpm)."""
 
     def fake_run(cmd, timeout=120, cwd=None):
         argv = [str(c) for c in cmd]
         if argv == ["py", "--version"]:
             return subprocess.CompletedProcess(cmd, 0, "Python 3.12.3\n", "")
+        if argv[1:] == ["--version"] and ("/" in argv[0] or "\\" in argv[0]):
+            # A venv interpreter version probe (check_venv_python_version):
+            # a bare `python3.12` launcher probe has no separator and
+            # must fall through to the launcher branches below.
+            if ".venv-qwen3" in argv[0] or ".venv-voxcpm" in argv[0]:
+                return subprocess.CompletedProcess(cmd, 0, "Python 3.12.3\n", "")
+            return subprocess.CompletedProcess(cmd, 0, "Python 3.11.9\n", "")
         if "-3.11" in argv or argv[:1] == ["python3.11"]:
             return subprocess.CompletedProcess(cmd, 0, "Python 3.11.9\n", "")
         if "-3.12" in argv or argv[:1] == ["python3.12"]:
@@ -69,11 +80,14 @@ def _fake_run_factory(tmp_project: Path):
         if argv[:2] == ["conda", "--version"]:
             return subprocess.CompletedProcess(cmd, 1, "", "")
         if "torch.cuda.is_available" in " ".join(argv):
-            return subprocess.CompletedProcess(cmd, 0, "True\n", "")
+            return subprocess.CompletedProcess(cmd, 0, "torch: ok\ncuda: True\nimport: ok\n", "")
         if argv[1:3] == ["-m", "voice_generator"] and argv[3] == "synth":
             out = argv[argv.index("--out") + 1]
             Path(out).parent.mkdir(parents=True, exist_ok=True)
             Path(out).write_bytes(b"RIFF")
+            Path(out).with_suffix(".manifest.json").write_text(
+                '{"manifest_version": 1, "duration_s": 1.0}', encoding="utf-8"
+            )
             return subprocess.CompletedProcess(cmd, 0, "", "")
         return subprocess.CompletedProcess(cmd, 0, "", "")
 
@@ -268,6 +282,9 @@ def _is_venv_cmd(cmd: list[str]) -> bool:
 def _install_setup(monkeypatch, tmp_path, *, with_core_venv: bool):
     project = tmp_path / "project"
     project.mkdir()
+    # The installer validates the project root before doing anything.
+    (project / "pyproject.toml").write_text("[project]\nname = \"voice-generator\"\n")
+    (project / "src" / "voice_generator").mkdir(parents=True)
     if with_core_venv:
         python = check.venv_python(project / ".venv-core")
         python.parent.mkdir(parents=True)
@@ -297,7 +314,9 @@ def test_install_core_reuses_existing_venv(tmp_path, monkeypatch):
     project, calls = _install_setup(monkeypatch, tmp_path, with_core_venv=True)
     assert install.main(["--backend", "core", "--project", str(project)]) == 0
     assert not any(_is_venv_cmd(c) for c in calls), calls
-    assert any(c[-3:] == ["install", "-e", "."] for c in calls), calls
+    assert any(
+        "--no-build-isolation" in c and c[-2:] == ["-e", "."] for c in calls
+    ), calls
 
 
 def test_install_core_creates_missing_venv(tmp_path, monkeypatch):
@@ -325,7 +344,7 @@ def test_install_core_creates_missing_venv_windows_forms(tmp_path, monkeypatch):
 def test_install_web_ensures_core_first(tmp_path, monkeypatch):
     project, calls = _install_setup(monkeypatch, tmp_path, with_core_venv=False)
     assert install.main(["--backend", "web", "--project", str(project)]) == 0
-    pip_calls = [c for c in calls if "pip" in c]
+    pip_calls = [c for c in calls if "pip" in c and "-e" in c]
     assert pip_calls[0][-1] == ".", pip_calls
     assert pip_calls[1][-1] == ".[web]", pip_calls
 
@@ -335,11 +354,7 @@ def test_install_chatterbox_cuda_fix(tmp_path, monkeypatch):
     python = check.venv_python(project / ".venv-chatterbox")
     python.parent.mkdir(parents=True)
     python.write_text("# stub\n", encoding="utf-8")
-    monkeypatch.setattr(
-        check,
-        "check_cuda",
-        lambda py, backend: check.Result(f"cuda-{backend}", "cuda", "FAIL", "cpu-only"),
-    )
+    monkeypatch.setattr(check, "cuda_diagnosis", lambda py, backend: "cpu-only")
     assert install.main(["--backend", "chatterbox", "--project", str(project)]) == 0
     cu121 = [c for c in calls if "download.pytorch.org" in " ".join(c)]
     assert len(cu121) == 1, calls
@@ -349,6 +364,8 @@ def test_install_chatterbox_cuda_fix(tmp_path, monkeypatch):
 def test_install_missing_python_aborts_before_any_work(tmp_path, monkeypatch):
     project = tmp_path / "project"
     project.mkdir()
+    (project / "pyproject.toml").write_text("[project]\nname = \"voice-generator\"\n")
+    (project / "src" / "voice_generator").mkdir(parents=True)
     calls: list[list[str]] = []
     monkeypatch.setattr(install, "run_stream", lambda cmd, cwd=None: calls.append(cmd) or 0)
     monkeypatch.setattr(

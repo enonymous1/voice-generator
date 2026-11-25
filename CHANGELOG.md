@@ -3,9 +3,61 @@
 All notable changes to voice-generator, following
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [0.5.24] — 2026-11-25 (full code review: bugs, fragile spots, docstrings)
+
+A line-by-line review of the whole project (core, all five backends, the
+web UI, setup scripts, tools, packaging, CI), with every finding fixed in
+the same release. 265 tests, ruff clean.
+
+### Security
+- `voice-gen freeze` no longer publishes real reference clips. An
+  unseeded freeze refuses when `refs/` holds any `.wav`, pointing at
+  `--seed-mock`; a seeded freeze publishes only the demo tone clip and
+  prints the excluded real references. The old test asserting the real
+  clip was copied is flipped to assert it is not.
+- No CSRF protection existed on any state-changing route. POSTs now
+  carry an Origin/Referer check (403 on a foreign origin; requests with
+  neither header are allowed). The research page sanitizes its Markdown
+  HTML with a stdlib allowlist (python-markdown passes raw HTML through).
+- The Flask secret key is no longer a hardcoded constant committed to a
+  public repo: `VOICE_GEN_SECRET` or a random per-start key.
 
 ### Fixed
+- `voice-gen synth --text ""` crashed with an `AttributeError` traceback
+  instead of the CLI's clean one-line error (`""` is falsy). It now
+  reports `Error: script is empty`.
+- The wheel shipped no web templates or static files, so any non-editable
+  install broke `voice-gen serve` on the first request. Added
+  `[tool.setuptools.package-data]` + `MANIFEST.in` (verified: the wheel
+  now carries all 7 templates + `style.css`, and a non-editable install
+  serves every route).
+- `tools/ab_compare.py` was unguarded: no timeout, a typo'd
+  `--*-python` crashed the whole tool, a malformed manifest crashed it
+  on the success path, and `--voxcpm-mode ultimate` without
+  `--ref-text-file` was only rejected after the other sides had already
+  rendered. All validation now runs up front, each side is guarded
+  (timeout flag, default 1800 s; per-side error records), and the temp
+  dir is `with`-scoped.
+- `setup/check.py` falsely FAILED valid 24/32-bit PCM clips (it never
+  mirrored `check_reference`, which never checks width — now a PASS
+  note), crashed the whole run on a non-UTF-8 transcript or subprocess
+  output (`errors="replace"` / FAIL with a re-save fix), and
+  false-PASSed any tool whose error text mentioned "version" (now a
+  first-line `version \d` match). It also never verified the venv's
+  Python version against its own table, and the mock render never
+  checked the manifest — both fixed. CUDA misdiagnosis is split into
+  no-torch / CPU-only / error cases with the right fix each.
+- `resolve_device` never returned `"mps"`: Apple Silicon silently fell
+  back to CPU, with a warning telling a Mac user to install a CUDA torch
+  build. MPS is now returned when available and the warning is
+  platform-appropriate.
+- The job page's poller broke on 404/fetch failure ("Status: undefined",
+  an error every second forever). It now handles 404s and stops polling.
+- `.btn` was unreadable in dark mode (white on `#7db3f5`, ~2.2:1); it now
+  uses `--btn-bg` like `button` already did (~5–6:1, verified by
+  screenshot in both themes).
+- `setup/check.py` and `setup/install.py` no longer carry duplicated
+  `BACKENDS` tables (one table in `check.py`, pip steps as a field).
 - The setup tests failed on Windows CI (7 failures): the fake
   subprocess in `tests/test_setup.py` only answered the Linux
   launcher forms (`python3.11 --version`), so every `py -3.11` /
@@ -23,6 +75,59 @@ All notable changes to voice-generator, following
   Venv commands are now matched on their tail (`-m venv <dir>`) in
   both the fake and the assertions, and a new test runs the
   venv-creation path under `sys.platform == "win32"`.
+
+### Changed
+- CLI error contract: bare `RuntimeError` is out of `EXPECTED_ERRORS`;
+  backends raise `BackendNotInstalledError` for a missing engine package
+  instead, so CUDA OOMs and genuine backend bugs propagate with their
+  traceback while "not installed" stays a clean one-liner.
+- `synthesize_script` no longer triplicates all 22 `SynthConfig`
+  fields: explicit parameters only for text/reference/ output, the rest
+  forward from `**overrides` with unknown keys rejected.
+- `write_pcm16_wav` streams in 65,536-sample blocks instead of
+  materializing ~30× the output size in transient Python objects
+  (a 2M-sample render peaks under 20 MB traced). Backends pass
+  array-like output straight through instead of flattening to a Python
+  float list first, and durations come from sample counts, not disk
+  re-reads. One shared `flatten_mono_samples` helper in `base.py`
+  replaces three divergent ones.
+- Successful renders delete the auto-derived `.parts` chunk directory
+  (explicit `work_dir` is never removed; failures keep it for
+  inspection). Manifest writes use a unique temp file + fsync.
+- `JobStore` prunes jobs older than 24 h and renders time out after
+  30 minutes (child killed, job marked `error`); job fields are
+  snapshotted under the lock for the API, and success requires the WAV
+  to exist, not just the manifest.
+- `voice-gen serve` resolves the default `refs/`/`output/` against the
+  project root (walk up to `pyproject.toml`) and refuses outside a
+  project instead of silently creating empty dirs in the wrong place.
+  The synth route validates `ref_name` and clamps `max_chars` (50–2000)
+  server-side; reference saves are atomic (temp file + `os.replace`,
+  transcript first) and truncated WAVs fail cleanly instead of 500ing.
+- `setup/install.py`: `--recreate` flag, project-root validation up
+  front, `web` skips the core install when core already passes,
+  `run_stream` has an 1800 s timeout, build deps are ensured before
+  `--no-build-isolation` installs, and the installed torch version is
+  printed after the CUDA fix.
+- Dependencies: `flask>=3.1,<4`, `markdown>=3.11,<4`,
+  `pytest>=9,<10`, `ruff>=0.17,<0.18` (versions verified from this
+  box); backend/torch pins are still unrecorded — `pyproject.toml`
+  carries the exact `pip freeze` command to capture them from the
+  target box. `requires-python` is now `>=3.10,<3.14`.
+- CI: pip cache + `fail-fast: false` + 30-minute timeouts in both
+  workflows; the Pages ruff line matches CI; a freeze-freshness step
+  fails the build when committed `site/` is stale.
+- PEP 257 docstrings added across the project (missing classes and
+  functions in every area) and five misleading docstrings corrected
+  ("mirrors `check_reference`", "leaves no partial files behind",
+  "pip install re-runs harmlessly", the `check_backend` contract,
+  the `MANIFEST_VERSION` stray literal).
+
+### Added
+- `tools/diag_qwen_prompt.py` is cross-platform (`Path("refs") /
+  "me_10s.wav"`, `--ref`/`--full` flags, `main()` guard) and exits
+  after the CUDA verdict on CPU-only machines unless `--full` is
+  passed.
 
 ## [0.5.23] — 2026-11-19 (setup/ directory: checker + installers)
 

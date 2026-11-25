@@ -1,0 +1,6 @@
+# sdist contents beyond the Python files: the web UI's templates and
+# static files (the wheel side is [tool.setuptools.package-data] in
+# pyproject.toml). Without these lines a source distribution ships a
+# `voice-gen serve` that fails on the first request (TemplateNotFound).
+recursive-include src/voice_generator/web/templates *.html
+recursive-include src/voice_generator/web/static *

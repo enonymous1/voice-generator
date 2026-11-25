@@ -10,9 +10,9 @@ from typing import ClassVar
 
 import pytest
 
-from voice_generator.audio import wav_info
-from voice_generator.backends.base import SynthesisRequest
-from voice_generator.backends.cosy_backend import CosyBackend, _flatten_samples
+from voice_generator.audio import wav_info, write_pcm16_wav
+from voice_generator.backends.base import SynthesisRequest, flatten_mono_samples
+from voice_generator.backends.cosy_backend import CosyBackend
 
 
 class _FakeCosyModel:
@@ -48,10 +48,22 @@ def fake_cosy(monkeypatch):
     return _FakeCosyModel
 
 
+def _model_dir(tmp_path: Path) -> Path:
+    # CosyBackend fails fast in __init__ when the model dir does not
+    # exist, so tests use a real (empty) directory.
+    d = tmp_path / "model"
+    d.mkdir(exist_ok=True)
+    return d
+
+
 def _req(tmp_path: Path, **over) -> SynthesisRequest:
+    # require_reference enforces the backend's minimum (3 s for
+    # CosyVoice), so the fixture clip is a real 10 s WAV.
+    ref = tmp_path / "ref.wav"
+    write_pcm16_wav(ref, [0.0] * (10 * 16000), 16000)
     base = {
         "text": "Hello there.",
-        "reference_wav": tmp_path / "ref.wav",
+        "reference_wav": ref,
         "language": "en",
         "ref_text": "The exact transcript of the reference clip.",
     }
@@ -60,12 +72,12 @@ def _req(tmp_path: Path, **over) -> SynthesisRequest:
 
 
 def test_flatten_samples_handles_channels_and_lists():
-    assert _flatten_samples([[0.5, -0.5]]) == [0.5, -0.5]
-    assert _flatten_samples([0.25, 0.25]) == [0.25, 0.25]
+    assert list(flatten_mono_samples([[0.5, -0.5]])) == [0.5, -0.5]
+    assert list(flatten_mono_samples([0.25, 0.25])) == [0.25, 0.25]
 
 
 def test_v3_prompt_format_and_segment_concat(fake_cosy, tmp_path: Path):
-    backend = CosyBackend(version="3", model_dir=tmp_path / "model")
+    backend = CosyBackend(version="3", model_dir=_model_dir(tmp_path))
     result = backend.synthesize(_req(tmp_path), tmp_path / "out.wav")
     model = fake_cosy.instances[0]
     assert model.zero_shot_calls[0][1] == (
@@ -77,7 +89,7 @@ def test_v3_prompt_format_and_segment_concat(fake_cosy, tmp_path: Path):
 
 
 def test_v2_prompt_is_bare_transcript(fake_cosy, tmp_path: Path):
-    backend = CosyBackend(version="2", model_dir=tmp_path / "model")
+    backend = CosyBackend(version="2", model_dir=_model_dir(tmp_path))
     backend.synthesize(_req(tmp_path), tmp_path / "out.wav")
     assert fake_cosy.instances[0].zero_shot_calls[0][1] == (
         "The exact transcript of the reference clip."
@@ -85,13 +97,13 @@ def test_v2_prompt_is_bare_transcript(fake_cosy, tmp_path: Path):
 
 
 def test_zero_shot_requires_transcript(fake_cosy, tmp_path: Path):
-    backend = CosyBackend(model_dir=tmp_path / "model")
+    backend = CosyBackend(model_dir=_model_dir(tmp_path))
     with pytest.raises(ValueError, match="transcript"):
         backend.synthesize(_req(tmp_path, ref_text=None), tmp_path / "x.wav")
 
 
 def test_cross_lingual_needs_no_transcript(fake_cosy, tmp_path: Path):
-    backend = CosyBackend(mode="cross_lingual", model_dir=tmp_path / "model")
+    backend = CosyBackend(mode="cross_lingual", model_dir=_model_dir(tmp_path))
     result = backend.synthesize(_req(tmp_path, ref_text=None), tmp_path / "y.wav")
     assert result.settings["mode"] == "cross_lingual"
     assert len(fake_cosy.instances[0].cross_lingual_calls) == 1
@@ -101,6 +113,6 @@ def test_missing_package_gives_setup_hint(tmp_path: Path, monkeypatch):
     monkeypatch.delitem(sys.modules, "cosyvoice.cli.cosyvoice", raising=False)
     monkeypatch.delitem(sys.modules, "cosyvoice.cli", raising=False)
     monkeypatch.delitem(sys.modules, "cosyvoice", raising=False)
-    backend = CosyBackend(model_dir=tmp_path / "model")
+    backend = CosyBackend(model_dir=_model_dir(tmp_path))
     with pytest.raises(RuntimeError, match="git clone --recursive"):
         backend.synthesize(_req(tmp_path), tmp_path / "z.wav")
